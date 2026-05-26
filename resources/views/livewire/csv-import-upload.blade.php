@@ -1,7 +1,7 @@
 <div>
     @if (! $batchId)
-        {{-- Upload form --}}
-        <form wire:submit="upload" class="space-y-6">
+        {{-- Upload area --}}
+        <div class="space-y-6">
             <div class="flex items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white px-6 py-12 transition hover:border-indigo-400"
                 x-data="{ dragging: false }"
                 x-on:dragover.prevent="dragging = true"
@@ -39,14 +39,17 @@
                         </svg>
                         <span class="text-sm font-medium text-slate-700">{{ $file->getClientOriginalName() }}</span>
                     </div>
-                    <button type="submit"
+                    <button type="button"
+                        wire:click="startImport"
                         class="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
-                        wire:loading.attr="disabled">
-                        {{ __('Start import') }}
+                        wire:loading.attr="disabled"
+                        wire:target="startImport">
+                        <span wire:loading.remove wire:target="startImport">{{ __('Start import') }}</span>
+                        <span wire:loading wire:target="startImport">{{ __('Processing…') }}</span>
                     </button>
                 </div>
             @endif
-        </form>
+        </div>
     @else
         {{-- Progress / Results --}}
         <div wire:poll.2s="checkProgress" class="space-y-6">

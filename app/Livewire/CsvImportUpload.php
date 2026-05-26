@@ -4,7 +4,6 @@ namespace App\Livewire;
 
 use App\Models\ImportBatch;
 use App\Jobs\ProcessCsvImportJob;
-use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -22,7 +21,7 @@ class CsvImportUpload extends Component
 
     public array $summary = [];
 
-    public function upload(): void
+    public function startImport(): void
     {
         $this->validate([
             'file' => ['required', 'file', 'max:10240'],
@@ -44,7 +43,7 @@ class CsvImportUpload extends Component
             'uploaded_by' => $user->id,
             'filename' => $storedPath,
             'original_filename' => $originalName,
-            'status' => 'processing',
+            'status' => 'pending',
         ]);
 
         $this->batchId = $batch->id;

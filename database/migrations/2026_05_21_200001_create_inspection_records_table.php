@@ -18,11 +18,11 @@ return new class extends Migration
             $table->string('vehicle_class', 50)->nullable();
             $table->string('inspection_type', 100)->nullable();
             $table->string('licence_plate', 30);
-            $table->string('vehicle_category', 50)->nullable();
+            $table->string('vehicle_category', 100)->nullable();
             $table->string('customer_name');
             $table->string('phone_number', 30);
             $table->string('normalized_phone_number', 20);
-            $table->string('status', 30);
+            $table->string('status', 100);
             $table->string('record_hash', 64)->unique();
             $table->timestamps();
 
