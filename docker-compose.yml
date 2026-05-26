@@ -1,38 +1,8 @@
-# Development environment for Visite Technique Platform
-# Use after Laravel is scaffolded: docker compose up -d
+# Optional Docker Compose for local development
+# Primary development uses local PHP/MySQL install (see README)
+# Use this when you prefer a containerized environment
 
 services:
-  app:
-    image: php:8.3-fpm
-    container_name: visite_app
-    working_dir: /var/www/html
-    volumes:
-      - .:/var/www/html
-    depends_on:
-      - mysql
-      - redis
-    networks:
-      - visite
-    command: >
-      sh -c "apt-get update -qq &&
-             apt-get install -y -qq git unzip libzip-dev libpng-dev libonig-dev libxml2-dev default-mysql-client &&
-             docker-php-ext-install pdo_mysql mbstring zip bcmath gd xml 2>/dev/null || true &&
-             pecl install redis 2>/dev/null && docker-php-ext-enable redis 2>/dev/null || true &&
-             php-fpm"
-
-  nginx:
-    image: nginx:alpine
-    container_name: visite_nginx
-    ports:
-      - "8080:80"
-    volumes:
-      - .:/var/www/html
-      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-    depends_on:
-      - app
-    networks:
-      - visite
-
   mysql:
     image: mysql:8.0
     container_name: visite_mysql
@@ -40,13 +10,9 @@ services:
       - "3306:3306"
     environment:
       MYSQL_DATABASE: visite_technique
-      MYSQL_USER: visite
-      MYSQL_PASSWORD: secret
-      MYSQL_ROOT_PASSWORD: rootsecret
+      MYSQL_ROOT_PASSWORD: secret
     volumes:
       - mysql_data:/var/lib/mysql
-    networks:
-      - visite
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -60,8 +26,6 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    networks:
-      - visite
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -74,13 +38,7 @@ services:
     ports:
       - "8025:8025"
       - "1025:1025"
-    networks:
-      - visite
 
 volumes:
   mysql_data:
   redis_data:
-
-networks:
-  visite:
-    driver: bridge
