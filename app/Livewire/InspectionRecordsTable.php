@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Models\ImportBatch;
 use App\Models\InspectionRecord;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -16,11 +17,18 @@ class InspectionRecordsTable extends Component
 
     public string $expiryFilter = '';
 
+    public string $batchFilter = '';
+
     public string $sortField = 'expiration_date';
 
     public string $sortDirection = 'asc';
 
     public function updatingSearch(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingBatchFilter(): void
     {
         $this->resetPage();
     }
@@ -49,6 +57,7 @@ class InspectionRecordsTable extends Component
                 });
             })
             ->when($this->statusFilter, fn ($q) => $q->where('status', $this->statusFilter))
+            ->when($this->batchFilter, fn ($q) => $q->where('import_batch_id', $this->batchFilter))
             ->when($this->expiryFilter, function ($q) {
                 match ($this->expiryFilter) {
                     'this_week' => $q->whereBetween('expiration_date', [now(), now()->addDays(7)]),
@@ -60,6 +69,10 @@ class InspectionRecordsTable extends Component
             ->orderBy($this->sortField, $this->sortDirection)
             ->paginate(20);
 
-        return view('livewire.inspection-records-table', compact('records'));
+        $batches = ImportBatch::where('center_id', $centerId)
+            ->orderByDesc('created_at')
+            ->get(['id', 'original_filename', 'created_at']);
+
+        return view('livewire.inspection-records-table', compact('records', 'batches'));
     }
 }

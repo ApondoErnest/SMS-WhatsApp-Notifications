@@ -20,19 +20,16 @@
     </div>
 
     {{-- Stats grid --}}
-    <div class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+    <div class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <x-dashboard-card :label="__('Total records')" :value="number_format($totalRecords)" />
         <x-dashboard-card :label="__('Imported today')" :value="number_format($importedToday)" />
+        <x-dashboard-card :label="__('Duplicates skipped')" :value="number_format($totalDuplicates)" />
+        <x-dashboard-card :label="__('Failed rows')" :value="number_format($totalFailed)" color="red" />
         <x-dashboard-card :label="__('Expiring this week')" :value="number_format($expiringThisWeek)" color="amber" />
         <x-dashboard-card :label="__('Expiring this month')" :value="number_format($expiringThisMonth)" color="amber" />
-        <x-dashboard-card :label="__('Upcoming schedules')" :value="number_format($pendingSchedules)" />
-    </div>
-
-    <div class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <x-dashboard-card :label="__('SMS sent today')" :value="number_format($smsSentToday)" color="green" />
         <x-dashboard-card :label="__('WhatsApp today')" :value="number_format($whatsappSentToday)" color="green" />
         <x-dashboard-card :label="__('Failed notifications')" :value="number_format($failedNotifications)" color="red" />
-        <x-dashboard-card :label="__('Total duplicates')" :value="number_format($totalDuplicates)" />
     </div>
 
     {{-- Recent imports --}}
