@@ -174,6 +174,24 @@ class CsvImportTest extends TestCase
         $this->assertEquals('failed', $batch->status);
     }
 
+    public function test_skips_cancelled_and_annule_status_rows(): void
+    {
+        $csv = "Regitration date;Inspection date;Expiration date;Cat.;Type;Licence plate;Category;Customer;Phone number;Status\n";
+        $csv .= "15/01/2026;20/01/2026;20/01/2027;A;VT;LT 0001 AA;VP;Cancelled Row;677111222;Cancelled\n";
+        $csv .= "15/01/2026;20/01/2026;20/01/2027;A;VT;LT 0002 BB;VP;Annule Row;677222333;Annulé\n";
+        $csv .= "15/01/2026;20/01/2026;20/01/2027;A;VT;LT 0003 CC;VP;Valid Row;677333444;APTE\n";
+
+        $path = $this->createCsvFile($csv, 'skipped.csv');
+        $batch = $this->createBatch($path);
+
+        app(CsvImportService::class)->process($batch);
+        $batch->refresh();
+
+        $this->assertEquals(1, $batch->total_rows);
+        $this->assertEquals(1, $batch->imported_rows);
+        $this->assertEquals(1, InspectionRecord::count());
+    }
+
     public function test_handles_various_date_formats(): void
     {
         $csv = "Regitration date;Inspection date;Expiration date;Cat.;Type;Licence plate;Category;Customer;Phone number;Status\n";

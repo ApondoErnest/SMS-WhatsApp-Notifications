@@ -110,13 +110,18 @@ class CsvImportService
 
             while (($row = fgetcsv($handle, 0, ';', '"', '')) !== false) {
                 $rowNumber++;
-                $totalRows++;
 
                 if (count($row) === 1 && trim($row[0]) === '') {
                     continue;
                 }
 
                 $mapped = $this->mapRow($row, $columnMap, $headerLine);
+
+                if ($this->isSkippedStatus($mapped['status'] ?? '')) {
+                    continue;
+                }
+
+                $totalRows++;
                 $errors = $this->validateRow($mapped, $rowNumber);
 
                 if (! empty($errors)) {
@@ -281,6 +286,18 @@ class CsvImportService
         }
 
         return $errors;
+    }
+
+    private function isSkippedStatus(string $status): bool
+    {
+        $normalized = mb_strtolower(trim($status));
+
+        return in_array($normalized, [
+            'cancelled',
+            'canceled',
+            'annulé',
+            'annule',
+        ], true);
     }
 
     private function parseDate(string $value): ?string

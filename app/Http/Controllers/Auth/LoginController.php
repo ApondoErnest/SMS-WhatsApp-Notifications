@@ -28,6 +28,14 @@ class LoginController extends Controller
                 ->withErrors(['email' => __('Invalid credentials.')]);
         }
 
+        if (auth()->user()->status !== 'active') {
+            Auth::logout();
+
+            return back()
+                ->withInput($request->only('email', 'remember'))
+                ->withErrors(['email' => __('This account is inactive.')]);
+        }
+
         $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard'));

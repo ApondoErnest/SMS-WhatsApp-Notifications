@@ -3,6 +3,9 @@
     "private": true,
     "type": "module",
     "scripts": {
+        "app": "php artisan serve --host=127.0.0.1 --port=8001",
+        "queue": "php artisan queue:work redis --queue=imports,default --tries=1 --timeout=300",
+        "local": "concurrently -c \"#93c5fd,#a7f3d0,#f9a8d4\" --names=app,queue,vite \"npm:app\" \"npm:queue\" \"npm:dev\" --kill-others",
         "build": "vite build",
         "dev": "vite"
     },

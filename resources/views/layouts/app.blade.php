@@ -37,10 +37,12 @@
                     {{ __('Import history') }}
                 </x-nav-link>
 
+                @can('view-records')
                 <x-nav-link href="{{ route('records.index') }}" :active="request()->routeIs('records.*')">
                     <x-icon-table class="h-5 w-5" />
                     {{ __('Records') }}
                 </x-nav-link>
+                @endcan
 
                 <x-nav-link href="{{ route('schedules.index') }}" :active="request()->routeIs('schedules.*')">
                     <x-icon-bell class="h-5 w-5" />
@@ -52,10 +54,21 @@
                     {{ __('Notifications') }}
                 </x-nav-link>
 
+                @can('manage-templates')
                 <x-nav-link href="{{ route('templates.index') }}" :active="request()->routeIs('templates.*')">
                     <x-icon-document class="h-5 w-5" />
                     {{ __('Templates') }}
                 </x-nav-link>
+                @endcan
+
+                @can('manage-users')
+                <x-nav-link href="{{ route('users.index') }}" :active="request()->routeIs('users.*')">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/>
+                    </svg>
+                    {{ __('Users') }}
+                </x-nav-link>
+                @endcan
             </nav>
 
             {{-- Language switcher + user --}}
@@ -81,7 +94,14 @@
                         <p class="truncate text-xs text-slate-500">{{ auth()->user()->role ?? 'operator' }}</p>
                     </div>
                 </div>
-                <form method="POST" action="{{ route('logout') }}" class="mt-3">
+                <a href="{{ route('account.password.edit') }}"
+                    class="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                    </svg>
+                    {{ __('Change password') }}
+                </a>
+                <form method="POST" action="{{ route('logout') }}" class="mt-2">
                     @csrf
                     <button type="submit" class="w-full rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-600 hover:bg-slate-200">
                         {{ __('Logout') }}

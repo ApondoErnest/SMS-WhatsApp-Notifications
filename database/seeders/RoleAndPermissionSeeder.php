@@ -33,7 +33,6 @@ class RoleAndPermissionSeeder extends Seeder
         $operator = Role::findOrCreate('operator');
         $operator->syncPermissions([
             'import-csv',
-            'view-records',
             'view-reports',
             'view-notifications',
         ]);
