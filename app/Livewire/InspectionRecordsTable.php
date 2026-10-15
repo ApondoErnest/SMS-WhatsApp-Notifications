@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\ImportBatch;
 use App\Models\InspectionRecord;
+use App\Support\CurrentCenter;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -45,7 +46,7 @@ class InspectionRecordsTable extends Component
 
     public function render()
     {
-        $centerId = auth()->user()->center_id;
+        $centerId = app(CurrentCenter::class)->id();
 
         $records = InspectionRecord::query()
             ->where('center_id', $centerId)

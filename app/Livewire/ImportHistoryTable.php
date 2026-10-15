@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\ImportBatch;
+use App\Support\CurrentCenter;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -26,7 +27,7 @@ class ImportHistoryTable extends Component
 
     public function render()
     {
-        $centerId = auth()->user()->center_id;
+        $centerId = app(CurrentCenter::class)->id();
 
         $batches = ImportBatch::query()
             ->where('center_id', $centerId)

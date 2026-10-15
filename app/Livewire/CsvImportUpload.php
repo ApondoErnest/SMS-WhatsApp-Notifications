@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\ImportBatch;
+use App\Support\CurrentCenter;
 use App\Jobs\ProcessCsvImportJob;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -39,7 +40,7 @@ class CsvImportUpload extends Component
         $storedPath = $this->file->store('imports', 'local');
 
         $batch = ImportBatch::create([
-            'center_id' => $user->center_id,
+            'center_id' => app(CurrentCenter::class)->id(),
             'uploaded_by' => $user->id,
             'filename' => $storedPath,
             'original_filename' => $originalName,

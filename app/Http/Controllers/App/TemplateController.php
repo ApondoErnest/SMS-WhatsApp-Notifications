@@ -4,6 +4,7 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
 use App\Models\NotificationTemplate;
+use App\Support\CurrentCenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -12,7 +13,7 @@ class TemplateController extends Controller
 {
     public function index(): View
     {
-        $centerId = auth()->user()->center_id;
+        $centerId = app(CurrentCenter::class)->id();
         $templates = NotificationTemplate::where('center_id', $centerId)
             ->orderBy('channel')
             ->orderBy('language')
@@ -37,7 +38,7 @@ class TemplateController extends Controller
             'content' => ['required', 'string', 'max:1600'],
         ]);
 
-        $centerId = auth()->user()->center_id;
+        $centerId = app(CurrentCenter::class)->id();
 
         $exists = NotificationTemplate::where('center_id', $centerId)
             ->where('channel', $validated['channel'])
@@ -62,14 +63,14 @@ class TemplateController extends Controller
 
     public function edit(NotificationTemplate $template): View
     {
-        abort_if($template->center_id !== auth()->user()->center_id, 403);
+        abort_if($template->center_id !== app(CurrentCenter::class)->id(), 403);
 
         return view('app.templates.edit', compact('template'));
     }
 
     public function update(Request $request, NotificationTemplate $template): RedirectResponse
     {
-        abort_if($template->center_id !== auth()->user()->center_id, 403);
+        abort_if($template->center_id !== app(CurrentCenter::class)->id(), 403);
 
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -85,7 +86,7 @@ class TemplateController extends Controller
 
     public function destroy(NotificationTemplate $template): RedirectResponse
     {
-        abort_if($template->center_id !== auth()->user()->center_id, 403);
+        abort_if($template->center_id !== app(CurrentCenter::class)->id(), 403);
 
         $template->delete();
 

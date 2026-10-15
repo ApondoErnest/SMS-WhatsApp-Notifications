@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
+use App\Support\CurrentCenter;
 use App\Models\ImportBatch;
 use Illuminate\View\View;
 
@@ -15,7 +16,7 @@ class ImportHistoryController extends Controller
 
     public function show(ImportBatch $batch): View
     {
-        $centerId = auth()->user()->center_id;
+        $centerId = app(CurrentCenter::class)->id();
 
         abort_if($batch->center_id !== $centerId, 403);
 

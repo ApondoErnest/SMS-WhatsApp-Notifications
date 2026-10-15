@@ -41,4 +41,9 @@ class User extends Authenticatable
     {
         return $this->belongsTo(InspectionCenter::class, 'center_id');
     }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->hasRole('super-admin');
+    }
 }

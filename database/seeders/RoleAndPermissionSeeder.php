@@ -13,6 +13,7 @@ class RoleAndPermissionSeeder extends Seeder
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
         $permissions = [
+            'manage-centers',
             'manage-users',
             'manage-settings',
             'manage-center',
@@ -27,8 +28,11 @@ class RoleAndPermissionSeeder extends Seeder
             Permission::findOrCreate($permission);
         }
 
+        $superAdmin = Role::findOrCreate('super-admin');
+        $superAdmin->syncPermissions($permissions);
+
         $admin = Role::findOrCreate('admin');
-        $admin->syncPermissions($permissions);
+        $admin->syncPermissions(array_values(array_diff($permissions, ['manage-centers'])));
 
         $operator = Role::findOrCreate('operator');
         $operator->syncPermissions([

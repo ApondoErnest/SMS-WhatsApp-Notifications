@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
+use App\Support\CurrentCenter;
 use App\Models\ImportBatch;
 use App\Models\InspectionRecord;
 use App\Models\NotificationLog;
@@ -13,7 +14,7 @@ class DashboardController extends Controller
 {
     public function __invoke(): View
     {
-        $centerId = auth()->user()->center_id;
+        $centerId = app(CurrentCenter::class)->id();
 
         $totalRecords = InspectionRecord::where('center_id', $centerId)->count();
         $importedToday = InspectionRecord::where('center_id', $centerId)

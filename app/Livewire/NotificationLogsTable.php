@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\NotificationLog;
+use App\Support\CurrentCenter;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -23,7 +24,7 @@ class NotificationLogsTable extends Component
 
     public function render()
     {
-        $centerId = auth()->user()->center_id;
+        $centerId = app(CurrentCenter::class)->id();
 
         $logs = NotificationLog::query()
             ->where('center_id', $centerId)

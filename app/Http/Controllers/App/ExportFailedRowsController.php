@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
+use App\Support\CurrentCenter;
 use App\Models\FailedImportRow;
 use App\Models\ImportBatch;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -11,7 +12,7 @@ class ExportFailedRowsController extends Controller
 {
     public function __invoke(ImportBatch $batch): StreamedResponse
     {
-        $centerId = auth()->user()->center_id;
+        $centerId = app(CurrentCenter::class)->id();
         abort_if($batch->center_id !== $centerId, 403);
 
         $filename = 'failed_rows_' . $batch->id . '_' . now()->format('Y-m-d_His') . '.csv';

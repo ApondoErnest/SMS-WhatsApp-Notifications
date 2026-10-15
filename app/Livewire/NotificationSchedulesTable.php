@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\NotificationSchedule;
+use App\Support\CurrentCenter;
 use Carbon\Carbon;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -54,7 +55,7 @@ class NotificationSchedulesTable extends Component
 
     public function render()
     {
-        $centerId = auth()->user()->center_id;
+        $centerId = app(CurrentCenter::class)->id();
 
         $schedules = NotificationSchedule::query()
             ->where('center_id', $centerId)

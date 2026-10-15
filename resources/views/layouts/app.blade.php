@@ -11,15 +11,24 @@
 <body class="min-h-screen bg-slate-50 text-slate-900 antialiased" x-data="{ sidebarOpen: false }">
     <div class="flex min-h-screen">
         {{-- Sidebar --}}
-        <aside class="fixed inset-y-0 left-0 z-30 w-64 transform border-r border-slate-200 bg-white transition-transform duration-200 lg:static lg:translate-x-0"
+        <aside class="fixed inset-y-0 left-0 z-30 flex w-64 transform flex-col border-r border-slate-200 bg-white transition-transform duration-200 lg:static lg:translate-x-0"
             :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'">
-            <div class="flex h-16 items-center border-b border-slate-200 px-6">
+            <div class="flex h-16 shrink-0 items-center border-b border-slate-200 px-6">
                 <a href="{{ route('dashboard') }}" class="text-lg font-bold text-indigo-600">
                     {{ config('app.name', 'Visite Notify') }}
                 </a>
             </div>
 
-            <nav class="mt-4 space-y-1 px-3">
+            <nav class="mt-4 flex-1 space-y-1 overflow-y-auto px-3 pb-4">
+                @can('manage-centers')
+                <x-nav-link href="{{ route('centers.index') }}" :active="request()->routeIs('centers.*')">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 21h19.5M3.75 21V8.25A2.25 2.25 0 016 6h3.75a2.25 2.25 0 012.25 2.25V21M9.75 21V4.5A2.25 2.25 0 0112 2.25h6A2.25 2.25 0 0120.25 4.5V21"/>
+                    </svg>
+                    {{ __('Centers') }}
+                </x-nav-link>
+                @endcan
+
                 <x-nav-link href="{{ route('dashboard') }}" :active="request()->routeIs('dashboard')">
                     <x-icon-dashboard class="h-5 w-5" />
                     {{ __('Dashboard') }}
@@ -61,6 +70,15 @@
                 </x-nav-link>
                 @endcan
 
+                @can('manage-center')
+                <x-nav-link href="{{ route('center.settings.edit') }}" :active="request()->routeIs('center.settings.*')">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 21h19.5M4.5 21V9.75A2.25 2.25 0 016.75 7.5h10.5A2.25 2.25 0 0119.5 9.75V21M8.25 21v-4.5a.75.75 0 01.75-.75h6a.75.75 0 01.75.75V21"/>
+                    </svg>
+                    {{ __('Center profile') }}
+                </x-nav-link>
+                @endcan
+
                 @can('manage-users')
                 <x-nav-link href="{{ route('users.index') }}" :active="request()->routeIs('users.*')">
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -72,7 +90,7 @@
             </nav>
 
             {{-- Language switcher + user --}}
-            <div class="absolute bottom-0 w-full border-t border-slate-200 p-4">
+            <div class="shrink-0 border-t border-slate-200 p-4">
                 <div class="mb-3 flex items-center justify-center gap-1 text-xs">
                     <a href="{{ route('locale.switch', 'fr') }}"
                         class="rounded px-2 py-1 {{ app()->getLocale() === 'fr' ? 'bg-indigo-100 font-semibold text-indigo-700' : 'text-slate-500 hover:text-slate-800' }}">
@@ -91,7 +109,11 @@
                     </div>
                     <div class="flex-1 truncate">
                         <p class="truncate text-sm font-medium text-slate-800">{{ auth()->user()->name ?? '' }}</p>
-                        <p class="truncate text-xs text-slate-500">{{ auth()->user()->role ?? 'operator' }}</p>
+                        <p class="truncate text-xs text-slate-500">{{ match(auth()->user()->role) {
+                            'super-admin' => __('Super Admin'),
+                            'admin' => __('Administrator'),
+                            default => __('Operator'),
+                        } }}</p>
                     </div>
                 </div>
                 <a href="{{ route('account.password.edit') }}"
@@ -116,13 +138,33 @@
 
         {{-- Main content --}}
         <div class="flex flex-1 flex-col">
-            <header class="flex h-16 items-center gap-4 border-b border-slate-200 bg-white px-6 lg:hidden">
-                <button @click="sidebarOpen = true" class="text-slate-600 hover:text-slate-900">
-                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-                    </svg>
-                </button>
-                <span class="text-lg font-semibold text-slate-800">{{ config('app.name') }}</span>
+            <header class="flex h-16 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 sm:px-6">
+                <div class="flex min-w-0 items-center gap-3">
+                    <button @click="sidebarOpen = true" class="text-slate-600 hover:text-slate-900 lg:hidden">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                        </svg>
+                    </button>
+                    <div class="min-w-0">
+                        <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{{ __('Current center') }}</p>
+                        <p class="truncate text-sm font-semibold text-slate-900">{{ $currentCenter?->name ?? __('No center selected') }}</p>
+                    </div>
+                </div>
+
+                @if (auth()->user()->isSuperAdmin() && $availableCenters->isNotEmpty())
+                    <form method="POST" action="{{ route('centers.switch') }}" class="shrink-0">
+                        @csrf
+                        <label class="sr-only" for="center-switcher">{{ __('Switch center') }}</label>
+                        <select id="center-switcher" name="center_id" onchange="this.form.submit()"
+                            class="max-w-[220px] rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+                            @foreach ($availableCenters as $centerOption)
+                                <option value="{{ $centerOption->id }}" @selected($currentCenter?->id === $centerOption->id)>
+                                    {{ $centerOption->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </form>
+                @endif
             </header>
 
             <main class="flex-1 p-6">

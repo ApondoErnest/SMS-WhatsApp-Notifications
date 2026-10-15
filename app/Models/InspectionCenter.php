@@ -9,9 +9,11 @@ class InspectionCenter extends Model
 {
     protected $fillable = [
         'name',
+        'code',
         'phone',
         'email',
         'address',
+        'city',
         'logo',
         'status',
     ];

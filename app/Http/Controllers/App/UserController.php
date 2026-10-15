@@ -4,6 +4,7 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\CurrentCenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -16,7 +17,7 @@ class UserController extends Controller
     public function index(): View
     {
         $users = User::query()
-            ->where('center_id', auth()->user()->center_id)
+            ->where('center_id', app(CurrentCenter::class)->id())
             ->orderBy('name')
             ->get();
 
@@ -39,7 +40,7 @@ class UserController extends Controller
         ]);
 
         $user = User::create([
-            'center_id' => auth()->user()->center_id,
+            'center_id' => app(CurrentCenter::class)->id(),
             'name' => $validated['name'],
             'email' => $validated['email'],
             'phone' => $validated['phone'] ?? null,
@@ -113,7 +114,7 @@ class UserController extends Controller
 
     private function ensureSameCenter(User $user): void
     {
-        if ($user->center_id !== auth()->user()->center_id) {
+        if ($user->center_id !== app(CurrentCenter::class)->id()) {
             abort(403);
         }
     }

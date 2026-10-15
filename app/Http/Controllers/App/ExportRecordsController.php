@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
+use App\Support\CurrentCenter;
 use App\Models\InspectionRecord;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -11,7 +12,7 @@ class ExportRecordsController extends Controller
 {
     public function __invoke(Request $request): StreamedResponse
     {
-        $centerId = auth()->user()->center_id;
+        $centerId = app(CurrentCenter::class)->id();
 
         $query = InspectionRecord::query()
             ->where('center_id', $centerId)
