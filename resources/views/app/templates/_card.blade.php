@@ -17,7 +17,17 @@
     </div>
     <h3 class="font-semibold text-slate-800">{{ $template->title }}</h3>
     <p class="mt-2 whitespace-pre-wrap text-sm text-slate-600">{{ $template->content }}</p>
+    @if ($template->channel === 'whatsapp' && $template->meta_template_name)
+        <p class="mt-2 text-xs text-slate-500">
+            Meta: <code class="text-indigo-600">{{ $template->meta_template_name }}</code>
+            · {{ $template->meta_language_code ?: $template->language }}
+        </p>
+    @endif
     <p class="mt-3 text-xs text-slate-400">
-        {{ __('Variables:') }} <code class="text-indigo-600">{customer_name}</code>, <code class="text-indigo-600">{licence_plate}</code>, <code class="text-indigo-600">{expiration_date}</code>
+        {{ __('Variables:') }}
+        <code class="text-indigo-600">{customer_name}</code>,
+        <code class="text-indigo-600">{licence_plate}</code>,
+        <code class="text-indigo-600">{expiration_date}</code>,
+        <code class="text-indigo-600">{center_name}</code>
     </p>
 </div>

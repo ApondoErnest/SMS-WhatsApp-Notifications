@@ -96,6 +96,38 @@
                     <dd class="font-mono text-slate-800">{{ $record->normalized_phone_number }}</dd>
                 </div>
             </dl>
+
+            @php
+                $hasConsent = $whatsappConsent === null || ($whatsappConsent->consented && $whatsappConsent->opted_out_at === null);
+            @endphp
+            <div class="mt-5 border-t border-slate-100 pt-4">
+                <div class="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                        <p class="text-sm font-medium text-slate-900">{{ __('WhatsApp consent') }}</p>
+                        <p class="text-xs text-slate-500">
+                            {{ $hasConsent ? __('Reminders are allowed for this phone number.') : __('Customer opted out — no WhatsApp reminders will be sent.') }}
+                        </p>
+                    </div>
+                    <span class="rounded-full px-2 py-0.5 text-xs font-medium {{ $hasConsent ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                        {{ $hasConsent ? __('Allowed') : __('Opted out') }}
+                    </span>
+                </div>
+                <form method="POST" action="{{ route('records.whatsapp-consent', $record) }}" class="flex flex-wrap gap-2">
+                    @csrf
+                    @method('PUT')
+                    @if ($hasConsent)
+                        <input type="hidden" name="consented" value="0">
+                        <button type="submit" class="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100">
+                            {{ __('Record opt-out') }}
+                        </button>
+                    @else
+                        <input type="hidden" name="consented" value="1">
+                        <button type="submit" class="rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-100">
+                            {{ __('Restore consent') }}
+                        </button>
+                    @endif
+                </form>
+            </div>
         </div>
 
         <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

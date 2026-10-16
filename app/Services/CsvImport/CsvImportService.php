@@ -5,6 +5,7 @@ namespace App\Services\CsvImport;
 use App\Models\FailedImportRow;
 use App\Models\ImportBatch;
 use App\Models\InspectionRecord;
+use App\Services\Notification\MessagingConsentService;
 use App\Services\Notification\NotificationSchedulerService;
 use App\Services\Phone\PhoneNumberService;
 use Carbon\Carbon;
@@ -61,6 +62,7 @@ class CsvImportService
         private PhoneNumberService $phoneService,
         private DuplicateDetectionService $duplicateService,
         private NotificationSchedulerService $schedulerService,
+        private MessagingConsentService $consentService,
     ) {}
 
     public function process(ImportBatch $batch): void
@@ -188,6 +190,8 @@ class CsvImportService
                         'status' => trim($mapped['status']),
                         'record_hash' => $recordHash,
                     ]);
+
+                    $this->consentService->ensureImportConsent($batch->center_id, $normalizedPhone);
 
                     $createdRecords[] = $record;
                     $imported++;

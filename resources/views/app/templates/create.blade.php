@@ -54,11 +54,40 @@
                 class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 placeholder="{{ __('Write your message here…') }}">{{ old('content') }}</textarea>
             <p class="mt-1 text-xs text-slate-500">
-                {{ __('Available variables:') }} <code class="text-indigo-600">{customer_name}</code>, <code class="text-indigo-600">{licence_plate}</code>, <code class="text-indigo-600">{expiration_date}</code>
+                {{ __('Available variables:') }}
+                <code class="text-indigo-600">{customer_name}</code>,
+                <code class="text-indigo-600">{licence_plate}</code>,
+                <code class="text-indigo-600">{expiration_date}</code>,
+                <code class="text-indigo-600">{center_name}</code>
             </p>
             @error('content')
                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
             @enderror
+        </div>
+
+        <div id="meta-fields" class="grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
+            <div class="sm:col-span-2">
+                <p class="text-sm font-medium text-slate-800">{{ __('Meta WhatsApp template') }}</p>
+                <p class="mt-1 text-xs text-slate-500">{{ __('Must match an approved template in Meta Business Manager. Named variables: customer_name, licence_plate, expiration_date, center_name.') }}</p>
+            </div>
+            <div>
+                <label for="meta_template_name" class="mb-1 block text-sm font-medium text-slate-700">{{ __('Meta template name') }}</label>
+                <input id="meta_template_name" name="meta_template_name" type="text" value="{{ old('meta_template_name', 'visite_expiry_reminder') }}"
+                    class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    placeholder="visite_expiry_reminder">
+                @error('meta_template_name')
+                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                @enderror
+            </div>
+            <div>
+                <label for="meta_language_code" class="mb-1 block text-sm font-medium text-slate-700">{{ __('Meta language code') }}</label>
+                <input id="meta_language_code" name="meta_language_code" type="text" value="{{ old('meta_language_code', 'fr') }}"
+                    class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    placeholder="fr">
+                @error('meta_language_code')
+                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                @enderror
+            </div>
         </div>
 
         <div class="flex gap-3">
@@ -73,3 +102,13 @@
         </div>
     </form>
 @endsection
+
+@push('scripts')
+<script>
+    const channel = document.getElementById('channel');
+    const metaFields = document.getElementById('meta-fields');
+    const syncMeta = () => { metaFields.style.display = channel.value === 'whatsapp' ? '' : 'none'; };
+    channel.addEventListener('change', syncMeta);
+    syncMeta();
+</script>
+@endpush

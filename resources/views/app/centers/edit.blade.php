@@ -18,4 +18,13 @@
             <a href="{{ route('centers.index') }}" class="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">{{ __('Cancel') }}</a>
         </div>
     </form>
+
+    <form method="POST" action="{{ route('centers.destroy', $center) }}" class="mt-6 max-w-2xl rounded-2xl border border-red-200 bg-red-50/60 p-6"
+        onsubmit="return confirm(@js(__('Delete this center? This permanently removes its users, imports, records, schedules, templates, and notification logs.')))">
+        @csrf
+        @method('DELETE')
+        <h2 class="text-sm font-semibold text-red-800">{{ __('Delete center') }}</h2>
+        <p class="mt-1 text-sm text-red-700">{{ __('This cannot be undone. Staff accounts for this center will also be deleted.') }}</p>
+        <button type="submit" class="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">{{ __('Delete center') }}</button>
+    </form>
 @endsection

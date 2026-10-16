@@ -4,10 +4,13 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
 use App\Models\InspectionCenter;
+use App\Models\User;
 use App\Support\CurrentCenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class CenterController extends Controller
@@ -64,6 +67,67 @@ class CenterController extends Controller
         app(CurrentCenter::class)->forget();
 
         return redirect()->route('dashboard')->with('status', __('Center switched.'));
+    }
+
+    public function destroy(InspectionCenter $center): RedirectResponse
+    {
+        $this->deleteCenters(collect([$center]));
+
+        return redirect()->route('centers.index')
+            ->with('status', __('Center deleted successfully.'));
+    }
+
+    public function destroyMany(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'center_ids' => ['required', 'array', 'min:1'],
+            'center_ids.*' => ['integer', 'distinct', 'exists:inspection_centers,id'],
+        ]);
+
+        $centers = InspectionCenter::query()
+            ->whereIn('id', $validated['center_ids'])
+            ->get();
+
+        $deleted = $this->deleteCenters($centers);
+
+        return redirect()->route('centers.index')
+            ->with('status', trans_choice(':count center deleted.|:count centers deleted.', $deleted));
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, InspectionCenter>  $centers
+     */
+    private function deleteCenters($centers): int
+    {
+        if ($centers->isEmpty()) {
+            throw ValidationException::withMessages([
+                'center_ids' => __('Select at least one center to delete.'),
+            ]);
+        }
+
+        $remaining = InspectionCenter::query()->count() - $centers->count();
+
+        if ($remaining < 1) {
+            throw ValidationException::withMessages([
+                'center_ids' => __('You cannot delete every center. Keep at least one.'),
+            ]);
+        }
+
+        $ids = $centers->pluck('id')->all();
+        $currentId = session('current_center_id');
+
+        DB::transaction(function () use ($ids): void {
+            User::query()->whereIn('center_id', $ids)->delete();
+            InspectionCenter::query()->whereIn('id', $ids)->delete();
+        });
+
+        if ($currentId && in_array((int) $currentId, array_map('intval', $ids), true)) {
+            $fallback = InspectionCenter::query()->orderBy('name')->value('id');
+            session(['current_center_id' => $fallback]);
+            app(CurrentCenter::class)->forget();
+        }
+
+        return count($ids);
     }
 
     private function validated(Request $request, ?InspectionCenter $center = null): array

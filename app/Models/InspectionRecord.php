@@ -34,6 +34,19 @@ class InspectionRecord extends Model
         ];
     }
 
+    public function isRefused(): bool
+    {
+        $status = mb_strtolower((string) $this->status);
+
+        foreach (config('notifications.refused_status_keywords', []) as $keyword) {
+            if (str_contains($status, $keyword)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function center(): BelongsTo
     {
         return $this->belongsTo(InspectionCenter::class, 'center_id');

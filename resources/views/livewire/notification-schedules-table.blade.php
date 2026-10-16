@@ -30,8 +30,11 @@
             class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
             <option value="">{{ __('All statuses') }}</option>
             <option value="pending">{{ __('Pending') }}</option>
+            <option value="queued">{{ __('Queued') }}</option>
             <option value="sent">{{ __('Sent') }}</option>
             <option value="failed">{{ __('Failed') }}</option>
+            <option value="missed">{{ __('Missed') }}</option>
+            <option value="cancelled">{{ __('Cancelled') }}</option>
         </select>
         <select wire:model.live="channelFilter"
             class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
@@ -115,6 +118,7 @@
                     <th class="px-4 py-3 text-left font-medium text-slate-600">{{ __('Vehicle category') }}</th>
                     <th class="px-4 py-3 text-left font-medium text-slate-600">{{ __('Channel') }}</th>
                     <th class="px-4 py-3 text-left font-medium text-slate-600">{{ __('Scheduled date') }}</th>
+                    <th class="px-4 py-3 text-left font-medium text-slate-600">{{ __('Reminder') }}</th>
                     <th class="px-4 py-3 text-left font-medium text-slate-600">{{ __('Attempts') }}</th>
                     <th class="px-4 py-3 text-left font-medium text-slate-600">{{ __('Status') }}</th>
                 </tr>
@@ -133,12 +137,17 @@
                             @endif
                         </td>
                         <td class="px-4 py-3 text-slate-600">{{ $schedule->scheduled_date->format('d/m/Y') }}</td>
+                        <td class="px-4 py-3 text-slate-600">
+                            {{ $schedule->days_before !== null ? trans_choice(':count day before|:count days before', $schedule->days_before) : '—' }}
+                        </td>
                         <td class="px-4 py-3 text-slate-600">{{ $schedule->attempts }}/3</td>
                         <td class="px-4 py-3">
                             @php
                                 $sc = match($schedule->status) {
                                     'sent' => 'bg-green-100 text-green-800',
                                     'failed' => 'bg-red-100 text-red-800',
+                                    'queued' => 'bg-indigo-100 text-indigo-800',
+                                    'missed', 'cancelled' => 'bg-slate-100 text-slate-600',
                                     default => 'bg-amber-100 text-amber-800',
                                 };
                             @endphp
@@ -147,7 +156,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-4 py-8 text-center text-slate-500">{{ __('No schedules.') }}</td>
+                        <td colspan="8" class="px-4 py-8 text-center text-slate-500">{{ __('No schedules.') }}</td>
                     </tr>
                 @endforelse
             </tbody>

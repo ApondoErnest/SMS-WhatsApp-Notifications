@@ -85,11 +85,24 @@ class DemoDataSeeder extends Seeder
             ]
         );
 
-        NotificationTemplate::firstOrCreate(
+        NotificationTemplate::updateOrCreate(
+            ['center_id' => $center->id, 'channel' => 'whatsapp', 'language' => 'en'],
+            [
+                'title' => 'Vehicle inspection expiry reminder (WhatsApp)',
+                'content' => "Hello {customer_name},\n\nYour roadworthiness inspection for vehicle {licence_plate} expires on {expiration_date}.\n\nPlease visit {center_name} to renew it.\n\nThank you for your trust.",
+                'meta_template_name' => 'visite_expiry_reminder',
+                'meta_language_code' => 'en',
+                'status' => 'active',
+            ]
+        );
+
+        NotificationTemplate::updateOrCreate(
             ['center_id' => $center->id, 'channel' => 'whatsapp', 'language' => 'fr'],
             [
-                'title' => 'Rappel visite technique WhatsApp',
-                'content' => 'Bonjour {customer_name}, votre visite technique pour le véhicule {licence_plate} expire le {expiration_date}. Merci de passer au centre pour le renouvellement.',
+                'title' => 'Rappel expiration visite technique (WhatsApp)',
+                'content' => "Bonjour {customer_name},\n\nVotre visite technique pour le véhicule {licence_plate} expire le {expiration_date}.\n\nNous vous invitons à vous rendre à {center_name} pour effectuer votre renouvellement.\n\nMerci de votre confiance.",
+                'meta_template_name' => 'visite_expiry_reminder',
+                'meta_language_code' => 'fr',
                 'status' => 'active',
             ]
         );

@@ -15,7 +15,9 @@
             <option value="pending">{{ __('Pending') }}</option>
             <option value="sent">{{ __('Sent') }}</option>
             <option value="delivered">{{ __('Delivered') }}</option>
+            <option value="read">{{ __('Read') }}</option>
             <option value="failed">{{ __('Failed') }}</option>
+            <option value="skipped">{{ __('Skipped') }}</option>
         </select>
     </div>
 
@@ -29,6 +31,7 @@
                     <th class="px-4 py-3 text-left font-medium text-slate-600">{{ __('Channel') }}</th>
                     <th class="px-4 py-3 text-left font-medium text-slate-600">{{ __('Provider') }}</th>
                     <th class="px-4 py-3 text-left font-medium text-slate-600">{{ __('Status') }}</th>
+                    <th class="px-4 py-3 text-left font-medium text-slate-600">{{ __('Est. cost') }}</th>
                     <th class="px-4 py-3 text-left font-medium text-slate-600">{{ __('Error') }}</th>
                 </tr>
             </thead>
@@ -49,19 +52,30 @@
                         <td class="px-4 py-3">
                             @php
                                 $sc = match($log->delivery_status) {
-                                    'delivered' => 'bg-green-100 text-green-800',
+                                    'read', 'delivered' => 'bg-green-100 text-green-800',
                                     'sent' => 'bg-blue-100 text-blue-800',
                                     'failed' => 'bg-red-100 text-red-800',
+                                    'skipped' => 'bg-amber-100 text-amber-800',
                                     default => 'bg-slate-100 text-slate-700',
                                 };
                             @endphp
                             <span class="rounded-full px-2 py-0.5 text-xs font-medium {{ $sc }}">{{ __(ucfirst($log->delivery_status)) }}</span>
                         </td>
+                        <td class="px-4 py-3 text-xs tabular-nums text-slate-600">
+                            @if ($log->estimated_cost !== null)
+                                {{ number_format((float) $log->estimated_cost, 4) }} {{ $log->cost_currency ?: 'USD' }}
+                                @if ($log->conversation_category)
+                                    <span class="text-slate-400">({{ $log->conversation_category }})</span>
+                                @endif
+                            @else
+                                —
+                            @endif
+                        </td>
                         <td class="max-w-[200px] truncate px-4 py-3 text-xs text-red-600">{{ $log->error_message ?? '—' }}</td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-4 py-8 text-center text-slate-500">{{ __('No notification logs.') }}</td>
+                        <td colspan="8" class="px-4 py-8 text-center text-slate-500">{{ __('No notification logs.') }}</td>
                     </tr>
                 @endforelse
             </tbody>

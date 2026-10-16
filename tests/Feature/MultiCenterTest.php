@@ -224,6 +224,69 @@ class MultiCenterTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_super_admin_can_delete_a_center_and_its_users(): void
+    {
+        $centerA = InspectionCenter::create(['name' => 'Center A', 'status' => 'active']);
+        $centerB = InspectionCenter::create(['name' => 'Center B', 'status' => 'active']);
+        $super = $this->makeUser(null, 'super-admin');
+        $admin = $this->makeUser($centerB, 'admin');
+        $record = $this->makeRecord($centerB, $admin);
+
+        $this->actingAs($super)
+            ->withSession(['current_center_id' => $centerB->id])
+            ->delete(route('centers.destroy', $centerB))
+            ->assertRedirect(route('centers.index'));
+
+        $this->assertDatabaseMissing('inspection_centers', ['id' => $centerB->id]);
+        $this->assertDatabaseMissing('users', ['id' => $admin->id]);
+        $this->assertDatabaseMissing('inspection_records', ['id' => $record->id]);
+        $this->assertDatabaseHas('inspection_centers', ['id' => $centerA->id]);
+        $this->assertSame($centerA->id, session('current_center_id'));
+    }
+
+    public function test_super_admin_can_delete_multiple_centers(): void
+    {
+        $keep = InspectionCenter::create(['name' => 'Keep', 'status' => 'active']);
+        $a = InspectionCenter::create(['name' => 'Delete A', 'status' => 'active']);
+        $b = InspectionCenter::create(['name' => 'Delete B', 'status' => 'active']);
+        $super = $this->makeUser(null, 'super-admin');
+
+        $this->actingAs($super)
+            ->withSession(['current_center_id' => $keep->id])
+            ->delete(route('centers.destroy-many'), ['center_ids' => [$a->id, $b->id]])
+            ->assertRedirect(route('centers.index'));
+
+        $this->assertDatabaseMissing('inspection_centers', ['id' => $a->id]);
+        $this->assertDatabaseMissing('inspection_centers', ['id' => $b->id]);
+        $this->assertDatabaseHas('inspection_centers', ['id' => $keep->id]);
+    }
+
+    public function test_cannot_delete_the_last_center(): void
+    {
+        $only = InspectionCenter::create(['name' => 'Only Center', 'status' => 'active']);
+        $super = $this->makeUser(null, 'super-admin');
+
+        $this->actingAs($super)
+            ->withSession(['current_center_id' => $only->id])
+            ->from(route('centers.index'))
+            ->delete(route('centers.destroy', $only))
+            ->assertRedirect(route('centers.index'))
+            ->assertSessionHasErrors('center_ids');
+
+        $this->assertDatabaseHas('inspection_centers', ['id' => $only->id]);
+    }
+
+    public function test_admin_cannot_delete_centers(): void
+    {
+        $center = InspectionCenter::create(['name' => 'Center A', 'status' => 'active']);
+        InspectionCenter::create(['name' => 'Center B', 'status' => 'active']);
+        $admin = $this->makeUser($center, 'admin');
+
+        $this->actingAs($admin)
+            ->delete(route('centers.destroy', $center))
+            ->assertForbidden();
+    }
+
     private function makeUser(?InspectionCenter $center, string $role): User
     {
         $user = User::factory()->create([

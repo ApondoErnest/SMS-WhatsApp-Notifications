@@ -14,10 +14,16 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\Webhooks\MetaWhatsAppWebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', HealthController::class)->name('health');
 Route::get('/locale/{locale}', LocaleController::class)->name('locale.switch');
+
+Route::get('webhooks/meta/whatsapp', [MetaWhatsAppWebhookController::class, 'verify'])
+    ->name('webhooks.meta.whatsapp.verify');
+Route::post('webhooks/meta/whatsapp', [MetaWhatsAppWebhookController::class, 'handle'])
+    ->name('webhooks.meta.whatsapp');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('login', [LoginController::class, 'create'])->name('login');
@@ -32,7 +38,8 @@ Route::middleware('auth')->group(function (): void {
 
     Route::middleware('permission:manage-centers')->group(function (): void {
         Route::post('centers/switch', [CenterController::class, 'switch'])->name('centers.switch');
-        Route::resource('centers', CenterController::class)->except(['show', 'destroy']);
+        Route::delete('centers', [CenterController::class, 'destroyMany'])->name('centers.destroy-many');
+        Route::resource('centers', CenterController::class)->except(['show']);
     });
 
     Route::middleware('tenant')->group(function (): void {
@@ -48,6 +55,8 @@ Route::middleware('auth')->group(function (): void {
             Route::get('records', fn () => view('app.records.index'))->name('records.index');
             Route::get('records/export', ExportRecordsController::class)->name('records.export');
             Route::get('records/{record}', [RecordController::class, 'show'])->name('records.show');
+            Route::put('records/{record}/whatsapp-consent', [RecordController::class, 'updateWhatsAppConsent'])
+                ->name('records.whatsapp-consent');
         });
 
         Route::get('schedules', fn () => view('app.schedules.index'))->name('schedules.index');
@@ -69,6 +78,7 @@ Route::middleware('auth')->group(function (): void {
         Route::middleware('permission:manage-center')->group(function (): void {
             Route::get('center', [CenterSettingsController::class, 'edit'])->name('center.settings.edit');
             Route::put('center', [CenterSettingsController::class, 'update'])->name('center.settings.update');
+            Route::put('center/reminders', [CenterSettingsController::class, 'updateReminders'])->name('center.reminders.update');
         });
     });
 });

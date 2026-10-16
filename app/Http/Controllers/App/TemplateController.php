@@ -36,6 +36,8 @@ class TemplateController extends Controller
             'language' => ['required', 'in:fr,en'],
             'title' => ['required', 'string', 'max:255'],
             'content' => ['required', 'string', 'max:1600'],
+            'meta_template_name' => ['nullable', 'string', 'max:100', 'regex:/^[a-z0-9_]+$/'],
+            'meta_language_code' => ['nullable', 'string', 'max:20'],
         ]);
 
         $centerId = app(CurrentCenter::class)->id();
@@ -49,6 +51,11 @@ class TemplateController extends Controller
             return back()->withInput()->withErrors([
                 'channel' => __('A template already exists for this channel and language. Edit it instead.'),
             ]);
+        }
+
+        if ($validated['channel'] !== 'whatsapp') {
+            $validated['meta_template_name'] = null;
+            $validated['meta_language_code'] = null;
         }
 
         NotificationTemplate::create([
@@ -76,7 +83,14 @@ class TemplateController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'content' => ['required', 'string', 'max:1600'],
             'status' => ['required', 'in:active,inactive'],
+            'meta_template_name' => ['nullable', 'string', 'max:100', 'regex:/^[a-z0-9_]+$/'],
+            'meta_language_code' => ['nullable', 'string', 'max:20'],
         ]);
+
+        if ($template->channel !== 'whatsapp') {
+            $validated['meta_template_name'] = null;
+            $validated['meta_language_code'] = null;
+        }
 
         $template->update($validated);
 

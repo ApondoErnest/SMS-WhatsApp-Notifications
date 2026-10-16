@@ -19,12 +19,25 @@ class NotificationLog extends Model
         'delivery_status',
         'error_message',
         'sent_at',
+        'delivered_at',
+        'read_at',
+        'failed_at',
+        'billable',
+        'pricing_model',
+        'conversation_category',
+        'estimated_cost',
+        'cost_currency',
     ];
 
     protected function casts(): array
     {
         return [
             'sent_at' => 'datetime',
+            'delivered_at' => 'datetime',
+            'read_at' => 'datetime',
+            'failed_at' => 'datetime',
+            'billable' => 'boolean',
+            'estimated_cost' => 'decimal:4',
         ];
     }
 

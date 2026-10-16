@@ -16,7 +16,43 @@ class InspectionCenter extends Model
         'city',
         'logo',
         'status',
+        'sms_enabled',
+        'whatsapp_enabled',
+        'reminder_days',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'sms_enabled' => 'boolean',
+            'whatsapp_enabled' => 'boolean',
+            'reminder_days' => 'array',
+        ];
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function reminderDays(): array
+    {
+        $days = $this->reminder_days ?: config('import.default_reminder_days', [30, 14, 7, 1]);
+
+        $days = array_values(array_unique(array_filter(array_map('intval', $days), fn (int $d) => $d > 0)));
+        rsort($days);
+
+        return $days;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function enabledChannels(): array
+    {
+        return array_values(array_filter([
+            $this->sms_enabled ? 'sms' : null,
+            $this->whatsapp_enabled ? 'whatsapp' : null,
+        ]));
+    }
 
     public function users(): HasMany
     {
