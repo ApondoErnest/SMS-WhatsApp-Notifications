@@ -194,6 +194,9 @@ class NotificationSchedulingTest extends TestCase
         config([
             'notifications.sending_enabled' => true,
             'notifications.sms.sending_enabled' => true,
+            'services.nexah.user' => 'nexah-user',
+            'services.nexah.password' => 'nexah-pass',
+            'services.nexah.sender_id' => 'VISITE',
             'services.whatsapp.token' => 'token',
             'services.whatsapp.phone_number_id' => '123',
         ]);

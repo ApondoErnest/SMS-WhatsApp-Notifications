@@ -8,6 +8,7 @@ use App\Http\Controllers\App\ExportRecordsController;
 use App\Http\Controllers\App\ImportHistoryController;
 use App\Http\Controllers\App\PasswordController;
 use App\Http\Controllers\App\RecordController;
+use App\Http\Controllers\App\SmsBalanceController;
 use App\Http\Controllers\App\TemplateController;
 use App\Http\Controllers\App\UserController;
 use App\Http\Controllers\Auth\LoginController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Webhooks\MetaWhatsAppWebhookController;
+use App\Http\Controllers\Webhooks\NexahSmsWebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', HealthController::class)->name('health');
@@ -24,6 +26,8 @@ Route::get('webhooks/meta/whatsapp', [MetaWhatsAppWebhookController::class, 'ver
     ->name('webhooks.meta.whatsapp.verify');
 Route::post('webhooks/meta/whatsapp', [MetaWhatsAppWebhookController::class, 'handle'])
     ->name('webhooks.meta.whatsapp');
+Route::post('webhooks/nexah/sms', [NexahSmsWebhookController::class, 'handle'])
+    ->name('webhooks.nexah.sms');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('login', [LoginController::class, 'create'])->name('login');
@@ -40,6 +44,7 @@ Route::middleware('auth')->group(function (): void {
         Route::post('centers/switch', [CenterController::class, 'switch'])->name('centers.switch');
         Route::delete('centers', [CenterController::class, 'destroyMany'])->name('centers.destroy-many');
         Route::resource('centers', CenterController::class)->except(['show']);
+        Route::get('sms-balance', SmsBalanceController::class)->name('sms.balance');
     });
 
     Route::middleware('tenant')->group(function (): void {

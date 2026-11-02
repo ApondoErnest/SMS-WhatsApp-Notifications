@@ -67,9 +67,19 @@ class MessagePersonalizer
 
     public function resolveWhatsAppTemplate(int $centerId, string $preferredLanguage = 'fr'): ?NotificationTemplate
     {
+        return $this->resolveTemplate($centerId, 'whatsapp', $preferredLanguage);
+    }
+
+    public function resolveSmsTemplate(int $centerId, string $preferredLanguage = 'fr'): ?NotificationTemplate
+    {
+        return $this->resolveTemplate($centerId, 'sms', $preferredLanguage);
+    }
+
+    private function resolveTemplate(int $centerId, string $channel, string $preferredLanguage = 'fr'): ?NotificationTemplate
+    {
         $query = NotificationTemplate::query()
             ->where('center_id', $centerId)
-            ->where('channel', 'whatsapp')
+            ->where('channel', $channel)
             ->where('status', 'active');
 
         $template = (clone $query)->where('language', $preferredLanguage)->first();

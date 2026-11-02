@@ -5,6 +5,7 @@ namespace App\Http\Controllers\App;
 use App\Http\Controllers\Controller;
 use App\Models\InspectionCenter;
 use App\Models\User;
+use App\Services\Sms\NexahSmsService;
 use App\Support\CurrentCenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,10 +13,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Throwable;
 
 class CenterController extends Controller
 {
-    public function index(CurrentCenter $currentCenter): View
+    public function index(CurrentCenter $currentCenter, NexahSmsService $sms): View
     {
         $centers = InspectionCenter::query()
             ->withCount(['users', 'inspectionRecords', 'importBatches'])
@@ -25,7 +27,44 @@ class CenterController extends Controller
         return view('app.centers.index', [
             'centers' => $centers,
             'currentCenter' => $currentCenter->center(),
+            'smsBalance' => $this->smsBalancePayload($sms),
         ]);
+    }
+
+    /**
+     * @return array{ok: bool, credit: ?int, account_expires_at: ?string, balance_expires_at: ?string, message: ?string}
+     */
+    private function smsBalancePayload(NexahSmsService $sms): array
+    {
+        if (! $sms->isConfigured()) {
+            return [
+                'ok' => false,
+                'credit' => null,
+                'account_expires_at' => null,
+                'balance_expires_at' => null,
+                'message' => __('Nexah SMS is not configured. Set NEXAH_SMS_USER, NEXAH_SMS_PASSWORD, and NEXAH_SMS_SENDER_ID.'),
+            ];
+        }
+
+        try {
+            $balance = $sms->getBalance();
+
+            return [
+                'ok' => true,
+                'credit' => $balance['credit'],
+                'account_expires_at' => $balance['account_expires_at'],
+                'balance_expires_at' => $balance['balance_expires_at'],
+                'message' => null,
+            ];
+        } catch (Throwable $e) {
+            return [
+                'ok' => false,
+                'credit' => null,
+                'account_expires_at' => null,
+                'balance_expires_at' => null,
+                'message' => $e->getMessage(),
+            ];
+        }
     }
 
     public function create(): View

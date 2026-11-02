@@ -4,7 +4,7 @@ Laravel web application for a roadworthiness inspection center (*Visite Techniqu
 
 **Strategy:** One inspection center first, multi-center SaaS later.
 
-**SMS:** Africa's Talking | **WhatsApp:** Direct Meta WhatsApp Cloud API
+**SMS:** [Nexah](https://nexah.net/) Bulk SMS | **WhatsApp:** Direct Meta WhatsApp Cloud API
 
 ## Features
 
@@ -13,7 +13,7 @@ Laravel web application for a roadworthiness inspection center (*Visite Techniqu
 - Duplicate detection via record hash
 - Searchable imported records table with filters, pagination, export
 - Certificate expiry tracking and automatic reminder scheduling
-- SMS reminders via Africa's Talking
+- SMS reminders via Nexah Bulk SMS API
 - WhatsApp reminders via Meta WhatsApp Cloud API
 - Delivery status tracking and logs
 - Import history with failed-row reports
@@ -28,11 +28,11 @@ Laravel web application for a roadworthiness inspection center (*Visite Techniqu
 | Frontend | Blade + Livewire + Tailwind CSS |
 | Database | MySQL 8 |
 | Queue | Redis + Laravel Horizon |
-| SMS | Africa's Talking |
+| SMS | Nexah Bulk SMS API (https://nexah.net/) |
 | WhatsApp | Meta WhatsApp Cloud API (direct) |
 | Auth | Laravel Breeze (Blade) |
 | Permissions | Spatie Laravel Permission |
-| CSV Import | Maatwebsite Excel |
+| CSV Import | Native PHP (`fgetcsv`) |
 | Web server | Nginx (production) |
 | SSL | Let's Encrypt |
 | CDN/Security | Cloudflare |
@@ -101,9 +101,11 @@ See [`.env.example`](.env.example). Key settings:
 |----------|-------------|
 | `DB_DATABASE` | `visite_notify` |
 | `QUEUE_CONNECTION` | `redis` |
-| `AFRICASTALKING_USERNAME` | Africa's Talking username |
-| `AFRICASTALKING_API_KEY` | Africa's Talking API key |
-| `AFRICASTALKING_SENDER_ID` | SMS sender ID |
+| `NEXAH_SMS_USER` | Nexah SMS account username |
+| `NEXAH_SMS_PASSWORD` | Nexah SMS account password |
+| `NEXAH_SMS_SENDER_ID` | Approved Nexah sender ID |
+| `NEXAH_SMS_BASE_URL` | Nexah API base URL (default `https://smsvas.com/bulk/public/index.php/api/v1`) |
+| `SMS_SENDING_ENABLED` | Master switch for SMS sends (`false` until ready for live sends) |
 | `META_WHATSAPP_TOKEN` | Meta permanent access token |
 | `META_WHATSAPP_PHONE_NUMBER_ID` | WhatsApp phone number ID |
 | `META_WHATSAPP_BUSINESS_ACCOUNT_ID` | WhatsApp business account ID |
@@ -136,7 +138,7 @@ app/
 │   ├── CsvImport/            # CsvImportService, DuplicateDetectionService
 │   ├── Phone/                # PhoneNumberService (E.164 normalization)
 │   ├── Notification/         # NotificationSchedulerService
-│   ├── Sms/                  # AfricaTalkingSmsService
+│   ├── Sms/                  # NexahSmsService
 │   └── WhatsApp/             # MetaWhatsAppService
 ```
 
@@ -149,7 +151,7 @@ app/
 | 3 | Duplicate prevention: record_hash, unique constraint |
 | 4 | Imported records: table, search, filters, export |
 | 5 | Notification scheduling: reminder dates, enable/disable |
-| 6 | Africa's Talking SMS integration |
+| 6 | Nexah SMS integration (send + DLR webhook + super-admin balance) |
 | 7 | Meta WhatsApp Cloud API integration |
 | 8 | Reports and dashboard analytics |
 | 9 | Security hardening and audit logs |

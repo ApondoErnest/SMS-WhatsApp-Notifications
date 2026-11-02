@@ -5,13 +5,16 @@ namespace App\Services\Notification;
 use App\Jobs\SendSmsNotificationJob;
 use App\Jobs\SendWhatsAppNotificationJob;
 use App\Models\NotificationSchedule;
+use App\Services\Sms\NexahSmsService;
 use App\Services\WhatsApp\MetaWhatsAppService;
 use Carbon\Carbon;
 
 class DueNotificationDispatcher
 {
-    public function __construct(private MetaWhatsAppService $whatsApp)
-    {
+    public function __construct(
+        private MetaWhatsAppService $whatsApp,
+        private NexahSmsService $sms,
+    ) {
     }
 
     public function markMissed(): int
@@ -40,7 +43,7 @@ class DueNotificationDispatcher
     public function dispatchDueToday(): int
     {
         $dispatched = 0;
-        $smsReady = (bool) config('notifications.sms.sending_enabled');
+        $smsReady = (bool) config('notifications.sms.sending_enabled') && $this->sms->isConfigured();
         $whatsAppReady = $this->whatsApp->isConfigured();
 
         $this->dueTodayQuery()

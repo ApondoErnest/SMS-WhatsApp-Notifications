@@ -32,7 +32,7 @@ return [
     ],
 
     'sms' => [
-        // Phase 6 — Africa's Talking. Keep false until that integration is live.
+        // Phase 6 — Nexah SMS. Keep false until that integration is live.
         'sending_enabled' => (bool) env('SMS_SENDING_ENABLED', false),
     ],
 ];

@@ -8,6 +8,7 @@ use App\Models\InspectionRecord;
 use App\Models\User;
 use Database\Seeders\RoleAndPermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class MultiCenterTest extends TestCase
@@ -18,6 +19,15 @@ class MultiCenterTest extends TestCase
     {
         parent::setUp();
         $this->seed(RoleAndPermissionSeeder::class);
+
+        // Centers index may fetch Nexah balance when credentials exist in .env.
+        Http::fake([
+            'smsvas.com/*' => Http::response([
+                'accountexpdate' => '26/03/2027',
+                'balanceexpdate' => '07/09/2027',
+                'credit' => 1000,
+            ], 200),
+        ]);
     }
 
     public function test_center_admin_cannot_view_another_centers_record(): void

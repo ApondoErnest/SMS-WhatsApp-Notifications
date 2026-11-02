@@ -8,10 +8,72 @@
             <h1 class="text-2xl font-bold text-slate-900">{{ __('Inspection centers') }}</h1>
             <p class="mt-1 text-sm text-slate-600">{{ __('Each center keeps its own users, imports, records, and templates.') }}</p>
         </div>
-        <a href="{{ route('centers.create') }}"
-            class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700">
-            {{ __('New center') }}
-        </a>
+        <div class="flex flex-wrap items-center gap-3">
+            <div
+                class="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm"
+                x-data="{
+                    ok: @js((bool) ($smsBalance['ok'] ?? false)),
+                    credit: @js($smsBalance['credit'] ?? null),
+                    accountExpiresAt: @js($smsBalance['account_expires_at'] ?? null),
+                    balanceExpiresAt: @js($smsBalance['balance_expires_at'] ?? null),
+                    message: @js($smsBalance['message'] ?? null),
+                    loading: false,
+                    get formattedCredit() {
+                        if (this.credit === null || this.credit === undefined) return '—';
+                        return new Intl.NumberFormat().format(this.credit);
+                    },
+                    async refresh() {
+                        this.loading = true;
+                        try {
+                            const response = await fetch(@js(route('sms.balance')), {
+                                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                                credentials: 'same-origin',
+                            });
+                            const data = await response.json();
+                            this.ok = !!data.ok;
+                            this.credit = data.credit ?? null;
+                            this.accountExpiresAt = data.account_expires_at ?? null;
+                            this.balanceExpiresAt = data.balance_expires_at ?? null;
+                            this.message = data.message ?? null;
+                        } catch (e) {
+                            this.ok = false;
+                            this.message = @js(__('Could not refresh SMS balance.'));
+                        } finally {
+                            this.loading = false;
+                        }
+                    },
+                }"
+            >
+                <div class="min-w-0">
+                    <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{{ __('SMS balance') }}</p>
+                    <template x-if="ok">
+                        <p class="text-sm font-semibold text-slate-900">
+                            <span x-text="formattedCredit"></span>
+                            <span class="font-normal text-slate-500">{{ __('credits') }}</span>
+                        </p>
+                    </template>
+                    <template x-if="!ok">
+                        <p class="max-w-xs truncate text-sm font-medium text-red-600" x-text="message || @js(__('Unavailable'))" :title="message"></p>
+                    </template>
+                    <p class="text-xs text-slate-400" x-show="ok && balanceExpiresAt">
+                        {{ __('Balance expires') }}: <span x-text="balanceExpiresAt"></span>
+                    </p>
+                </div>
+                <button type="button"
+                    @click="refresh()"
+                    :disabled="loading"
+                    class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 disabled:cursor-wait disabled:opacity-60">
+                    <svg class="h-3.5 w-3.5" :class="loading && 'animate-spin'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    <span x-text="loading ? @js(__('Refreshing…')) : @js(__('Refresh'))"></span>
+                </button>
+            </div>
+            <a href="{{ route('centers.create') }}"
+                class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700">
+                {{ __('New center') }}
+            </a>
+        </div>
     </div>
 
     @if ($errors->has('center_ids'))

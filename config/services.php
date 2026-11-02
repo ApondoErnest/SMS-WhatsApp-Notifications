@@ -23,10 +23,11 @@ return [
         ],
     ],
 
-    'africastalking' => [
-        'username' => env('AFRICASTALKING_USERNAME', 'sandbox'),
-        'api_key' => env('AFRICASTALKING_API_KEY'),
-        'sender_id' => env('AFRICASTALKING_SENDER_ID'),
+    'nexah' => [
+        'user' => env('NEXAH_SMS_USER'),
+        'password' => env('NEXAH_SMS_PASSWORD'),
+        'sender_id' => env('NEXAH_SMS_SENDER_ID'),
+        'base_url' => env('NEXAH_SMS_BASE_URL', 'https://smsvas.com/bulk/public/index.php/api/v1'),
     ],
 
     'whatsapp' => [

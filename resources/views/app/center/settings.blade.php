@@ -38,7 +38,7 @@
                 <legend class="text-sm font-medium text-slate-700">{{ __('Channels') }}</legend>
 
                 @foreach ([
-                    ['name' => 'sms_enabled', 'label' => 'SMS', 'hint' => __('Text message via Africa\'s Talking'), 'checked' => $smsEnabled, 'color' => 'peer-checked:bg-blue-600'],
+                    ['name' => 'sms_enabled', 'label' => 'SMS', 'hint' => __('Text message via Nexah'), 'checked' => $smsEnabled, 'color' => 'peer-checked:bg-blue-600'],
                     ['name' => 'whatsapp_enabled', 'label' => 'WhatsApp', 'hint' => __('Template message via Meta WhatsApp'), 'checked' => $whatsappEnabled, 'color' => 'peer-checked:bg-green-600'],
                 ] as $channel)
                     <label class="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-slate-200 px-4 py-3 hover:bg-slate-50">

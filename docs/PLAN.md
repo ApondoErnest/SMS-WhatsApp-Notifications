@@ -2,7 +2,7 @@
 
 **Laravel Vehicle Inspection Notification Platform**
 One Inspection Center First → Multi-Center SaaS Later
-SMS via Africa's Talking + WhatsApp via Direct Meta Cloud API
+SMS via Nexah (nexah.net) + WhatsApp via Direct Meta Cloud API
 
 ---
 
@@ -18,7 +18,7 @@ The system will:
 - Display all imported data in a searchable table
 - Track certificate expiry dates
 - Schedule automatic reminders
-- Send SMS through Africa's Talking
+- Send SMS through Nexah Bulk SMS API (https://nexah.net/)
 - Send WhatsApp messages directly through Meta WhatsApp Cloud API
 - Keep delivery logs
 - Generate reports
@@ -40,7 +40,7 @@ The system will:
 | Frontend | Blade + Livewire + TailwindCSS |
 | Authentication | Laravel Breeze (Blade stack) |
 | Permissions | Spatie Laravel Permission |
-| SMS | Africa's Talking |
+| SMS | Nexah Bulk SMS API (https://nexah.net/) |
 | WhatsApp | Direct Meta WhatsApp Cloud API |
 | Queue | Redis |
 | Queue monitor | Laravel Horizon |
@@ -67,7 +67,7 @@ Notification Scheduler
         ↓
 Redis Queue
         ↓
-Africa's Talking SMS API  /  Meta WhatsApp Cloud API
+Nexah Bulk SMS API  /  Meta WhatsApp Cloud API
         ↓
 Delivery Logs + Reports
 ```
@@ -93,7 +93,7 @@ Cloudflare → Nginx → PHP 8.3-FPM → Laravel App → Redis Queue → MySQL D
 9. Valid records are saved to `inspection_records`
 10. Invalid rows are stored in `failed_import_rows`
 11. System creates reminder schedules
-12. SMS reminders sent via Africa's Talking
+12. SMS reminders sent via Nexah
 13. WhatsApp reminders sent via Meta Cloud API
 14. Delivery status is stored in `notification_logs`
 15. Reports are generated
@@ -201,9 +201,10 @@ REDIS_HOST=127.0.0.1
 REDIS_PASSWORD=null
 REDIS_PORT=6379
 
-AFRICASTALKING_USERNAME=your_username
-AFRICASTALKING_API_KEY=your_api_key
-AFRICASTALKING_SENDER_ID=your_sender_id
+NEXAH_SMS_USER=your_nexah_username
+NEXAH_SMS_PASSWORD=your_nexah_password
+NEXAH_SMS_SENDER_ID=your_sender_id
+NEXAH_SMS_BASE_URL=https://smsvas.com/bulk/public/index.php/api/v1
 
 META_WHATSAPP_TOKEN=your_meta_access_token
 META_WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
@@ -317,7 +318,7 @@ All tables include `center_id` from day one for future SaaS expansion.
 | inspection_record_id | FK → inspection_records |
 | notification_schedule_id | FK nullable → notification_schedules |
 | channel | varchar(20) |
-| provider | varchar(30) — africastalking / meta_whatsapp |
+| provider | varchar(30) — nexah / meta_whatsapp |
 | phone_number | varchar(20) |
 | message | text |
 | provider_message_id | varchar(100) nullable, indexed |
@@ -480,31 +481,156 @@ Admin can enable/disable SMS and WhatsApp reminders independently.
 
 ---
 
-## 16. SMS Integration: Africa's Talking
+## 16. SMS Integration: Nexah (Bulk SMS)
+
+Provider: [Nexah](https://nexah.net/) — Cameroon SMS VAS / Bulk SMS platform.
+
+Official API access is provisioned after commercial onboarding with Nexah support/sales. The REST interface used by partners is the Bulk SMS wrapper on `smsvas.com`.
+
+### Requirements
+
+- Nexah account (username + password) from https://nexah.net/
+- Approved sender ID (`senderid`)
+- Optional: partner DLR (delivery report) callback URL registered with Nexah
+- Outbound HTTPS from the app to Nexah endpoints
+- Inbound HTTPS webhook path for DLR callbacks (production)
+
+### API Endpoints
+
+Base URL (configurable via `NEXAH_SMS_BASE_URL`):
+
+```
+https://smsvas.com/bulk/public/index.php/api/v1
+```
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| Send SMS | `POST` / `GET` | `/sendsms` |
+| Account credit / balance | `POST` / `GET` | `/smscredit` |
+| Delivery report (Nexah → us) | `POST` | Partner webhook URL (e.g. `/webhooks/nexah/sms`) |
+
+Prefer `POST` with `Accept: application/json` and `Content-Type: application/json`.
+
+### Send SMS request
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `user` | yes | Nexah login |
+| `password` | yes | Nexah password |
+| `senderid` | yes | Approved sender name |
+| `sms` | yes | Message body |
+| `mobiles` | yes | Comma-separated numbers; `237` prefix optional (e.g. `2376XXXXXXXX`, `6XXXXXXXX`) |
+
+Example body:
+
+```json
+{
+  "user": "user",
+  "password": "password",
+  "senderid": "SENDER",
+  "sms": "message",
+  "mobiles": "2376XXXXXXXX"
+}
+```
+
+### Send SMS response (success)
+
+`responsecode` = `1` on success, `0` on error. Per-recipient results appear under `sms[]` with `messageid`, `mobileno`, `status`, and optional error fields.
+
+Store `messageid` as `notification_logs.provider_message_id` and set `provider` to `nexah`.
+
+### Known error codes (send)
+
+| Code | Meaning |
+|------|---------|
+| `-10019` | Inactive user |
+| `-10003` | Invalid mobile number |
+| `-10026` | Client SMS ID max limit exceeded |
+| `-10008` | Balance not enough |
+
+Other validation messages include missing credentials, missing message/sender, invalid sender ID, and invalid schedule date.
+
+### Account balance
+
+`POST /smscredit` with `user` + `password` returns `credit`, `accountexpdate`, and `balanceexpdate`. Useful for ops monitoring (optional Phase 6 stretch).
+
+### Delivery reports (DLR)
+
+Nexah `POST`s a JSON payload to the partner URL:
+
+```json
+{
+  "dlrlist": [
+    {
+      "reponsecode": 1,
+      "reponsedescription": "success",
+      "messageid": "e12dd358cff3961752f8c1180cc209ff",
+      "mobileno": "+237678018812",
+      "status": "DELIVRD",
+      "submittime": "2019-05-11 13:53:13",
+      "senttime": "2019-05-11 13:53:14",
+      "deliverytime": "2019-05-11 13:53:14"
+    }
+  ]
+}
+```
+
+Status mapping:
+
+| Provider status | Meaning | App delivery status |
+|-----------------|---------|---------------------|
+| `DELIVRD` (error code `1`) | Delivered | `delivered` |
+| `UNDELIV` (error code `0`) | Not delivered | `failed` |
+
+Partner must acknowledge by echoing `dlrlist` entries with `status` set to `1` (accepted) or `0` (rejected).
+
+Handle DLR asynchronously via `ProcessSmsDeliveryReportJob` on the `webhooks` queue (same pattern as Meta WhatsApp webhooks).
+
+### Environment variables
+
+```
+NEXAH_SMS_USER=your_nexah_username
+NEXAH_SMS_PASSWORD=your_nexah_password
+NEXAH_SMS_SENDER_ID=your_sender_id
+NEXAH_SMS_BASE_URL=https://smsvas.com/bulk/public/index.php/api/v1
+SMS_SENDING_ENABLED=false
+```
+
+Keep `SMS_SENDING_ENABLED=false` until credentials and templates are verified in a test send.
 
 ### Responsibilities
 
-- Send SMS reminders
-- Handle API responses
-- Store provider message ID
-- Store delivery status
+- Send SMS reminders via Nexah REST API
+- Normalize destination numbers (Cameroon E.164 → Nexah-friendly `237…` / local form)
+- Handle API responses and map error codes
+- Store provider `messageid` and delivery status
+- Accept Nexah DLR webhooks and update `notification_logs`
 - Retry failed SMS
-- Generate SMS reports
+- Generate SMS delivery reports
 
 ### Workflow
 
 ```
 Due SMS schedule found
   → SendSmsNotificationJob dispatched
-    → AfricaTalkingSmsService sends request
-      → Provider response saved
-        → notification_logs updated
+    → NexahSmsService POST /sendsms
+      → Provider response saved (messageid, status)
+        → notification_logs updated (provider = nexah)
+          → Nexah DLR webhook updates delivery status
           → Failed messages retried later
 ```
 
 ### Example SMS
 
 > Cher client, votre visite technique pour le véhicule {licence_plate} expire le {expiration_date}. Veuillez passer au centre pour le renouvellement.
+
+### Implementation notes
+
+- HTTP client: Laravel `Http` facade calling Nexah REST directly (optional community package `gladdle/nexah-sms` exists but is not required)
+- Service class: `app/Services/Sms/NexahSmsService.php`
+- Webhook controller: `app/Http/Controllers/Webhooks/NexahSmsWebhookController.php`
+- Route: `POST webhooks/nexah/sms` (CSRF-exempt), plus optional health/verify if Nexah requires it
+- Phone format: reuse `PhoneNumberService` E.164 output; strip `+` before send if Nexah expects `237…`
 
 ---
 
@@ -599,7 +725,7 @@ Due SMS schedule found
 - Inspection Records Module
 - Duplicate Detection Module
 - Notification Scheduler Module
-- Africa's Talking SMS Module
+- Nexah SMS Module
 - Meta WhatsApp Module
 - Webhook Module
 - Reports Module
@@ -621,7 +747,7 @@ app/
 │   ├── CsvImport/
 │   ├── Notification/
 │   ├── Sms/
-│   │   └── AfricaTalkingSmsService.php
+│   │   └── NexahSmsService.php
 │   ├── WhatsApp/
 │   │   └── MetaWhatsAppService.php
 │   ├── Center/
@@ -643,7 +769,7 @@ app/
 | DuplicateDetectionService | Prevents duplicate records via record_hash |
 | PhoneNumberService | Normalizes Cameroon phone numbers to E.164 |
 | NotificationSchedulerService | Creates reminder dates |
-| AfricaTalkingSmsService | Sends SMS via Africa's Talking |
+| NexahSmsService | Sends SMS via Nexah Bulk SMS API |
 | MetaWhatsAppService | Sends WhatsApp via Meta Cloud API |
 | WebhookService | Processes provider callbacks |
 | ReportService | Generates reports |
@@ -705,7 +831,7 @@ Dockerize only after:
 - CSV import works
 - Duplicate prevention works
 - Imported records table works
-- Africa's Talking SMS works
+- Nexah SMS works
 - Meta WhatsApp works
 - Queues work
 - Reports work
@@ -784,13 +910,16 @@ Because `center_id` exists from day one, the app can later expand to:
 - Show upcoming reminders
 - Allow enabling/disabling reminder rules
 
-### Phase 6 — Africa's Talking SMS
-- Create SMS credentials settings
-- Implement AfricaTalkingSmsService
-- Create SendSmsNotificationJob
-- Save SMS logs to notification_logs
-- Retry failed SMS
-- Generate SMS delivery reports
+### Phase 6 — Nexah SMS ✅
+- Wire Nexah credentials via `.env` / `config/services.php`
+- Implement `NexahSmsService` (`/sendsms`, `/smscredit`, DLR parse/ack)
+- Implement `SendSmsNotificationJob` (queue: `notifications`)
+- Save SMS logs to `notification_logs` with `provider = nexah`
+- Nexah DLR webhook `POST /webhooks/nexah/sms` + `ProcessSmsDeliveryReportJob`
+- Super-admin SMS balance shown inline on Centers (with refresh via `GET /sms-balance` JSON)
+- Job retries (`$tries` / backoff); permanent errors fail immediately
+- Feature tests: `tests/Feature/SmsNotificationTest.php`
+- Deferred: dedicated SMS delivery reports UI (Phase 8)
 
 ### Phase 7 — Meta WhatsApp Cloud API
 - Create Meta credentials settings
@@ -832,7 +961,7 @@ Because `center_id` exists from day one, the app can later expand to:
 - Test real CSV files
 - Test daily import workflow
 - Test duplicate prevention
-- Test SMS delivery to Cameroon numbers
+- Test Nexah SMS delivery to Cameroon numbers
 - Test WhatsApp template approval and sending
 - Test reports
 - Optimize performance
@@ -869,7 +998,7 @@ Because `center_id` exists from day one, the app can later expand to:
 8. Imported records table
 9. Import history
 10. Notification scheduling
-11. Africa's Talking SMS
+11. Nexah SMS (https://nexah.net/)
 12. Meta WhatsApp Cloud API
 13. Reports
 14. VPS deployment with Nginx
