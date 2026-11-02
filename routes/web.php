@@ -8,6 +8,7 @@ use App\Http\Controllers\App\ExportRecordsController;
 use App\Http\Controllers\App\ImportHistoryController;
 use App\Http\Controllers\App\PasswordController;
 use App\Http\Controllers\App\RecordController;
+use App\Http\Controllers\App\ReportController;
 use App\Http\Controllers\App\SmsBalanceController;
 use App\Http\Controllers\App\TemplateController;
 use App\Http\Controllers\App\UserController;
@@ -66,6 +67,15 @@ Route::middleware('auth')->group(function (): void {
 
         Route::get('schedules', fn () => view('app.schedules.index'))->name('schedules.index');
         Route::get('notifications', fn () => view('app.notifications.index'))->name('notifications.index');
+
+        Route::middleware('permission:view-reports')->prefix('reports')->name('reports.')->group(function (): void {
+            Route::get('/', [ReportController::class, 'index'])->name('index');
+            Route::get('/imports', [ReportController::class, 'imports'])->name('imports');
+            Route::get('/expiry', [ReportController::class, 'expiry'])->name('expiry');
+            Route::get('/expiry/export', [ReportController::class, 'exportExpiry'])->name('expiry.export');
+            Route::get('/notifications', [ReportController::class, 'notifications'])->name('notifications');
+            Route::get('/notifications/export', [ReportController::class, 'exportNotifications'])->name('notifications.export');
+        });
 
         Route::middleware('permission:manage-templates')->group(function (): void {
             Route::get('templates', [TemplateController::class, 'index'])->name('templates.index');

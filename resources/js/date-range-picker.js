@@ -1,12 +1,14 @@
 document.addEventListener('alpine:init', () => {
-    Alpine.data('scheduleDateRange', (config) => ({
-        from: config.from,
-        to: config.to,
+    const dateRangePickerFactory = (config) => ({
+        from: config.from ?? null,
+        to: config.to ?? null,
         locale: config.locale || 'en',
         openFrom: false,
         openTo: false,
         viewFrom: { month: 0, year: 0 },
         viewTo: { month: 0, year: 0 },
+        yearPast: config.yearPast ?? 15,
+        yearFuture: config.yearFuture ?? 5,
 
         init() {
             this.resetViews();
@@ -34,7 +36,7 @@ document.addEventListener('alpine:init', () => {
         years() {
             const current = new Date().getFullYear();
             const list = [];
-            for (let y = current - 15; y <= current + 5; y++) {
+            for (let y = current - this.yearPast; y <= current + this.yearFuture; y++) {
                 list.push(y);
             }
             return list;
@@ -124,7 +126,7 @@ document.addEventListener('alpine:init', () => {
                 return 'bg-indigo-50 text-indigo-900 hover:bg-indigo-100';
             }
             if (cell.isToday) {
-                return 'font-semibold text-indigo-700 ring-1 ring-indigo-400 ring-inset hover:bg-indigo-50';
+                return 'font-semibold text-indigo-700 ring-1 ring-indigo-300 ring-inset hover:bg-indigo-50';
             }
             return 'text-slate-700 hover:bg-slate-100';
         },
@@ -196,7 +198,8 @@ document.addEventListener('alpine:init', () => {
             this.openFrom = !this.openFrom;
             this.openTo = false;
             if (this.openFrom) {
-                this.resetViews();
+                const base = this.parseIso(this.from) ?? new Date();
+                this.viewFrom = { month: base.getMonth(), year: base.getFullYear() };
             }
         },
 
@@ -204,8 +207,13 @@ document.addEventListener('alpine:init', () => {
             this.openTo = !this.openTo;
             this.openFrom = false;
             if (this.openTo) {
-                this.resetViews();
+                const base = this.parseIso(this.to) ?? this.parseIso(this.from) ?? new Date();
+                this.viewTo = { month: base.getMonth(), year: base.getFullYear() };
             }
         },
-    }));
+    });
+
+    Alpine.data('dateRangePicker', dateRangePickerFactory);
+    // Alias used by the schedules Livewire filter.
+    Alpine.data('scheduleDateRange', dateRangePickerFactory);
 });

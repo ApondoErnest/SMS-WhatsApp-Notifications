@@ -3,20 +3,28 @@
 @section('title', __('Dashboard'))
 
 @section('content')
-    <div class="mb-8 flex items-center justify-between">
+    <div class="mb-8 flex flex-wrap items-center justify-between gap-3">
         <div>
             <h1 class="text-2xl font-bold text-slate-900">{{ __('Dashboard') }}</h1>
             <p class="mt-1 text-sm text-slate-600">
                 {{ __('Welcome') }}, {{ auth()->user()->name }}
             </p>
         </div>
-        @can('import-csv')
-            <a href="{{ route('imports.create') }}"
-                class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700">
-                <x-icon-upload class="h-4 w-4" />
-                {{ __('Import CSV') }}
-            </a>
-        @endcan
+        <div class="flex flex-wrap items-center gap-2">
+            @can('view-reports')
+                <a href="{{ route('reports.index') }}"
+                    class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+                    {{ __('Reports') }}
+                </a>
+            @endcan
+            @can('import-csv')
+                <a href="{{ route('imports.create') }}"
+                    class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700">
+                    <x-icon-upload class="h-4 w-4" />
+                    {{ __('Import CSV') }}
+                </a>
+            @endcan
+        </div>
     </div>
 
     {{-- Stats grid --}}

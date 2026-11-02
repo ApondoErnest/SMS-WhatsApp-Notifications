@@ -929,14 +929,15 @@ Because `center_id` exists from day one, the app can later expand to:
 - Create webhook endpoint for delivery reports
 - Track delivered/read/failed statuses
 
-### Phase 8 — Reports and Dashboard
-- Import reports
-- Expiry reports
-- SMS delivery reports
-- WhatsApp delivery reports
-- Failed notification reports
-- Daily activity reports
-- Live dashboard card counts
+### Phase 8 — Reports and Dashboard ✅
+- Reports hub at `/reports` (permission: `view-reports`)
+- Import reports (`/reports/imports`)
+- Expiry reports (`/reports/expiry` — week / month / expired / custom + CSV export)
+- SMS & WhatsApp delivery reports (`/reports/notifications` + filters + CSV export)
+- Failed notification filtering via status filter
+- Daily activity table on overview
+- Live dashboard card counts (existing) + link to Reports
+- `App\Services\Reports\ReportService` + `tests/Feature/ReportsTest.php`
 
 ### Phase 9 — Security and Hardening
 - Validate all uploads
