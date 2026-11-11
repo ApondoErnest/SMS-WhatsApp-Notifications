@@ -84,9 +84,18 @@
         </div>
 
         {{-- Live preview --}}
+        @php
+            $previewCenterName = app(\App\Support\CurrentCenter::class)->center()?->name ?: 'Centre de Visite Technique Douala';
+            $previewReplacements = [
+                '{customer_name}' => 'Jean Dupont',
+                '{licence_plate}' => 'LT1234AB',
+                '{expiration_date}' => '15/12/2026',
+                '{center_name}' => $previewCenterName,
+            ];
+        @endphp
         <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <p class="mb-2 text-xs font-medium text-slate-500">{{ __('Preview (with sample data):') }}</p>
-            <p class="whitespace-pre-wrap text-sm text-slate-700" id="preview-text">{{ str_replace(['{customer_name}', '{licence_plate}', '{expiration_date}', '{center_name}'], ['Jean Dupont', 'LT 1234 AB', '15/12/2026', 'Centre de Visite Technique Douala'], $template->content) }}</p>
+            <p class="whitespace-pre-wrap text-sm text-slate-700" id="preview-text">{{ strtr($template->content, $previewReplacements) }}</p>
         </div>
 
         <div class="flex gap-3">
@@ -104,12 +113,18 @@
 
 @push('scripts')
 <script>
-    document.getElementById('content').addEventListener('input', function() {
-        let text = this.value
-            .replace(/\{customer_name\}/g, 'Jean Dupont')
-            .replace(/\{licence_plate\}/g, 'LT 1234 AB')
-            .replace(/\{expiration_date\}/g, '15/12/2026')
-            .replace(/\{center_name\}/g, 'Centre de Visite Technique Douala');
+    const previewSamples = {
+        customer_name: @json('Jean Dupont'),
+        licence_plate: @json('LT1234AB'),
+        expiration_date: @json('15/12/2026'),
+        center_name: @json($previewCenterName),
+    };
+
+    document.getElementById('content').addEventListener('input', function () {
+        let text = this.value;
+        Object.entries(previewSamples).forEach(([key, value]) => {
+            text = text.replaceAll('{' + key + '}', value);
+        });
         document.getElementById('preview-text').textContent = text;
     });
 </script>

@@ -154,7 +154,7 @@ app/
 | 6 | Nexah SMS integration (send + DLR webhook + super-admin balance) |
 | 7 | Meta WhatsApp Cloud API integration |
 | 8 | Reports and dashboard analytics |
-| 9 | Security hardening and audit logs |
+| 9 | Security hardening and audit logs ✅ |
 | 10 | VPS deployment (Nginx, Supervisor, SSL) |
 | 11 | Stabilization and real-world testing |
 | 12 | Dockerization |

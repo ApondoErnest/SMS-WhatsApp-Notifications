@@ -101,6 +101,7 @@ class MultiCenterTest extends TestCase
                 'code' => 'baf',
                 'city' => 'Bafoussam',
                 'status' => 'active',
+                'notification_language' => 'fr',
             ]);
 
         $center = InspectionCenter::where('name', 'Centre Bafoussam')->first();
@@ -108,6 +109,16 @@ class MultiCenterTest extends TestCase
         $this->assertSame('BAF', $center->code);
         $response->assertRedirect(route('centers.index'));
         $response->assertSessionHas('current_center_id', $center->id);
+
+        $templates = \App\Models\NotificationTemplate::query()
+            ->where('center_id', $center->id)
+            ->get();
+
+        $this->assertCount(4, $templates);
+        $this->assertTrue($templates->contains(fn ($t) => $t->channel === 'sms' && $t->language === 'fr'));
+        $this->assertTrue($templates->contains(fn ($t) => $t->channel === 'sms' && $t->language === 'en'));
+        $this->assertTrue($templates->contains(fn ($t) => $t->channel === 'whatsapp' && $t->language === 'fr'));
+        $this->assertTrue($templates->contains(fn ($t) => $t->channel === 'whatsapp' && $t->language === 'en'));
     }
 
     public function test_super_admin_can_load_every_page(): void
@@ -192,6 +203,7 @@ class MultiCenterTest extends TestCase
                 'code' => 'bbb',
                 'city' => 'Yaoundé',
                 'status' => 'inactive',
+                'notification_language' => 'en',
             ])
             ->assertRedirect(route('centers.index'));
 
@@ -199,6 +211,7 @@ class MultiCenterTest extends TestCase
         $this->assertSame('Center B Renamed', $centerB->name);
         $this->assertSame('BBB', $centerB->code);
         $this->assertSame('inactive', $centerB->status);
+        $this->assertSame('en', $centerB->notification_language);
 
         $this->actingAs($super)
             ->withSession(['current_center_id' => $centerA->id])
@@ -217,6 +230,7 @@ class MultiCenterTest extends TestCase
                 'name' => 'Center Duplicate',
                 'code' => 'aaa',
                 'status' => 'active',
+                'notification_language' => 'fr',
             ])
             ->assertSessionHasErrors('code');
     }

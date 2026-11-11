@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\App\AuditLogController;
 use App\Http\Controllers\App\CenterController;
 use App\Http\Controllers\App\CenterSettingsController;
 use App\Http\Controllers\App\DashboardController;
@@ -51,11 +52,12 @@ Route::middleware('auth')->group(function (): void {
     Route::middleware('tenant')->group(function (): void {
         Route::get('dashboard', DashboardController::class)->name('dashboard');
 
-        Route::get('imports/create', fn () => view('app.imports.create'))->name('imports.create');
-
-        Route::get('import-history', [ImportHistoryController::class, 'index'])->name('import-history.index');
-        Route::get('import-history/{batch}', [ImportHistoryController::class, 'show'])->name('import-history.show');
-        Route::get('import-history/{batch}/failed-export', ExportFailedRowsController::class)->name('import-history.failed-export');
+        Route::middleware('permission:import-csv')->group(function (): void {
+            Route::get('imports/create', fn () => view('app.imports.create'))->name('imports.create');
+            Route::get('import-history', [ImportHistoryController::class, 'index'])->name('import-history.index');
+            Route::get('import-history/{batch}', [ImportHistoryController::class, 'show'])->name('import-history.show');
+            Route::get('import-history/{batch}/failed-export', ExportFailedRowsController::class)->name('import-history.failed-export');
+        });
 
         Route::middleware('permission:view-records')->group(function (): void {
             Route::get('records', fn () => view('app.records.index'))->name('records.index');
@@ -65,8 +67,14 @@ Route::middleware('auth')->group(function (): void {
                 ->name('records.whatsapp-consent');
         });
 
-        Route::get('schedules', fn () => view('app.schedules.index'))->name('schedules.index');
-        Route::get('notifications', fn () => view('app.notifications.index'))->name('notifications.index');
+        Route::middleware('permission:view-notifications')->group(function (): void {
+            Route::get('schedules', fn () => view('app.schedules.index'))->name('schedules.index');
+            Route::get('notifications', fn () => view('app.notifications.index'))->name('notifications.index');
+        });
+
+        Route::middleware('permission:view-audit-logs')->group(function (): void {
+            Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
+        });
 
         Route::middleware('permission:view-reports')->prefix('reports')->name('reports.')->group(function (): void {
             Route::get('/', [ReportController::class, 'index'])->name('index');

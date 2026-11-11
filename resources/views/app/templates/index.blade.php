@@ -62,6 +62,15 @@
         <div class="mt-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 class="mb-2 text-lg font-semibold text-slate-900">{{ __('Message preview') }}</h2>
             <p class="mb-4 text-sm text-slate-500">{{ __('This is how messages will appear to customers (with sample data):') }}</p>
+            @php
+                $previewCenterName = app(\App\Support\CurrentCenter::class)->center()?->name ?: 'Centre de Visite Technique Douala';
+                $previewReplacements = [
+                    '{customer_name}' => 'Jean Dupont',
+                    '{licence_plate}' => 'LT1234AB',
+                    '{expiration_date}' => '15/12/2026',
+                    '{center_name}' => $previewCenterName,
+                ];
+            @endphp
             <div class="grid gap-4 lg:grid-cols-2">
                 @foreach ($templates->where('status', 'active') as $template)
                     <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
@@ -73,7 +82,7 @@
                             @endif
                             <span class="text-xs font-medium text-slate-500">{{ strtoupper($template->language) }}</span>
                         </div>
-                        <p class="whitespace-pre-wrap text-sm text-slate-700">{{ str_replace(['{licence_plate}', '{expiration_date}', '{customer_name}'], ['LT 1234 AB', '15/12/2026', 'Jean Dupont'], $template->content) }}</p>
+                        <p class="whitespace-pre-wrap text-sm text-slate-700">{{ strtr($template->content, $previewReplacements) }}</p>
                     </div>
                 @endforeach
             </div>

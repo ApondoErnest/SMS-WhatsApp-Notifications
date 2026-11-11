@@ -109,7 +109,7 @@ class SendSmsNotificationJob implements ShouldQueue, ShouldBeUniqueUntilProcessi
 
         $template = $personalizer->resolveSmsTemplate(
             $record->center_id,
-            app()->getLocale() === 'en' ? 'en' : 'fr',
+            $center->notificationLanguage(),
         );
 
         if (! $template) {

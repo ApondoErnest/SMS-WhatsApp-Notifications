@@ -131,6 +131,44 @@ class CsvImportTest extends TestCase
         $this->assertEquals(1, InspectionRecord::count());
     }
 
+    public function test_detects_duplicates_across_centers(): void
+    {
+        $csv = "Regitration date;Inspection date;Expiration date;Cat.;Type;Licence plate;Category;Customer;Phone number;Status\n";
+        $csv .= "15/01/2026;20/01/2026;20/01/2027;A;Visite technique;LT 9999 ZZ;VP;Cross Center;677555666;APTE\n";
+
+        $path = $this->createCsvFile($csv, 'cross-center.csv');
+
+        $batch1 = $this->createBatch($path);
+        app(CsvImportService::class)->process($batch1);
+        $batch1->refresh();
+        $this->assertEquals(1, $batch1->imported_rows);
+
+        $otherCenter = InspectionCenter::create([
+            'name' => 'Other Center',
+            'code' => 'OTH',
+            'city' => 'Yaounde',
+        ]);
+        $otherUser = User::factory()->create([
+            'center_id' => $otherCenter->id,
+        ]);
+
+        $batch2 = ImportBatch::create([
+            'center_id' => $otherCenter->id,
+            'uploaded_by' => $otherUser->id,
+            'filename' => $path,
+            'original_filename' => 'upload.csv',
+            'status' => 'processing',
+        ]);
+
+        app(CsvImportService::class)->process($batch2);
+        $batch2->refresh();
+
+        $this->assertEquals(0, $batch2->imported_rows);
+        $this->assertEquals(1, $batch2->duplicate_rows);
+        $this->assertEquals(1, InspectionRecord::count());
+        $this->assertEquals($this->center->id, InspectionRecord::first()->center_id);
+    }
+
     public function test_normalizes_phone_numbers_to_e164(): void
     {
         $csv = "Regitration date;Inspection date;Expiration date;Cat.;Type;Licence plate;Category;Customer;Phone number;Status\n";

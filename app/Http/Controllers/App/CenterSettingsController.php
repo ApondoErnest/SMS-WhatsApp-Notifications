@@ -4,6 +4,7 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\GenerateNotificationSchedulesJob;
+use App\Services\Audit\AuditLogService;
 use App\Support\CurrentCenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,11 +36,18 @@ class CenterSettingsController extends Controller
             'phone' => ['nullable', 'string', 'max:20'],
             'email' => ['nullable', 'email', 'max:255'],
             'address' => ['nullable', 'string', 'max:1000'],
+            'notification_language' => ['required', Rule::in(['fr', 'en'])],
         ]);
 
         $validated['code'] = filled($validated['code'] ?? null) ? $validated['code'] : null;
 
         $center->update($validated);
+
+        app(AuditLogService::class)->record(
+            'center_profile_updated',
+            'Updated center profile for '.$center->name,
+            centerId: $center->id,
+        );
 
         return redirect()->route('center.settings.edit')
             ->with('status', __('Center profile updated.'));
@@ -67,6 +75,14 @@ class CenterSettingsController extends Controller
             'whatsapp_enabled' => $request->boolean('whatsapp_enabled'),
             'reminder_days' => array_values(array_unique($days)),
         ]);
+
+        app(AuditLogService::class)->record(
+            'center_reminders_updated',
+            'Updated reminder settings (sms='.($center->sms_enabled ? 'on' : 'off')
+                .', whatsapp='.($center->whatsapp_enabled ? 'on' : 'off')
+                .', days='.implode(',', $center->reminder_days ?? []).')',
+            centerId: $center->id,
+        );
 
         if ($center->wasChanged(['sms_enabled', 'whatsapp_enabled', 'reminder_days'])) {
             GenerateNotificationSchedulesJob::dispatch($center->id);

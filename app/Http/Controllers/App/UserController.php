@@ -4,6 +4,7 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\Audit\AuditLogService;
 use App\Support\CurrentCenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -51,6 +52,11 @@ class UserController extends Controller
 
         $user->syncRoles([$validated['role']]);
 
+        app(AuditLogService::class)->record(
+            'user_created',
+            'Created user '.$user->email.' ('.$user->role.')',
+        );
+
         return redirect()->route('users.index')
             ->with('status', __('User created successfully.'));
     }
@@ -94,6 +100,11 @@ class UserController extends Controller
         $user->save();
         $user->syncRoles([$validated['role']]);
 
+        app(AuditLogService::class)->record(
+            'user_updated',
+            'Updated user '.$user->email.' ('.$user->role.', '.$user->status.')',
+        );
+
         return redirect()->route('users.index')
             ->with('status', __('User updated successfully.'));
     }
@@ -106,7 +117,13 @@ class UserController extends Controller
             return back()->with('error', __('You cannot delete your own account.'));
         }
 
+        $email = $user->email;
         $user->delete();
+
+        app(AuditLogService::class)->record(
+            'user_deleted',
+            'Deleted user '.$email,
+        );
 
         return redirect()->route('users.index')
             ->with('status', __('User deleted.'));

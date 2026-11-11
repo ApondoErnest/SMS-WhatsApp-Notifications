@@ -108,7 +108,10 @@ class SendWhatsAppNotificationJob implements ShouldQueue, ShouldBeUniqueUntilPro
             return;
         }
 
-        $template = $personalizer->resolveWhatsAppTemplate($record->center_id, app()->getLocale() === 'en' ? 'en' : 'fr');
+        $template = $personalizer->resolveWhatsAppTemplate(
+            $record->center_id,
+            $center->notificationLanguage(),
+        );
         $templateName = $template?->meta_template_name
             ?: config('notifications.whatsapp.default_template_name');
         $languageCode = $template?->meta_language_code

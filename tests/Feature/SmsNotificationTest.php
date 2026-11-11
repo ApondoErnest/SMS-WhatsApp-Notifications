@@ -156,6 +156,50 @@ class SmsNotificationTest extends TestCase
         ]);
     }
 
+    public function test_uses_center_notification_language_template(): void
+    {
+        $this->center->update(['notification_language' => 'en']);
+
+        NotificationTemplate::create([
+            'center_id' => $this->center->id,
+            'channel' => 'sms',
+            'language' => 'en',
+            'title' => 'SMS Reminder',
+            'content' => 'Dear customer, your inspection for {licence_plate} expires on {expiration_date}.',
+            'status' => 'active',
+        ]);
+
+        Http::fake([
+            'smsvas.com/*' => Http::response([
+                'responsecode' => 1,
+                'responsedescription' => 'success',
+                'responsemessage' => 'success',
+                'sms' => [[
+                    'messageid' => 'nexah-en-1',
+                    'smsclientid' => 'client-en',
+                    'mobileno' => '+237677123456',
+                    'status' => 'success',
+                    'errorcode' => '',
+                    'errordescription' => '',
+                ]],
+            ], 200),
+        ]);
+
+        $schedule = $this->makeSchedule('2026-10-15');
+
+        (new SendSmsNotificationJob($schedule->id))->handle(
+            app(\App\Services\Sms\NexahSmsService::class),
+            app(MessagePersonalizer::class),
+            app(MessagingConsentService::class),
+        );
+
+        Http::assertSent(fn ($request) => str_contains($request->data()['sms'], 'Dear customer'));
+        $this->assertDatabaseHas('notification_logs', [
+            'notification_schedule_id' => $schedule->id,
+            'message' => 'Dear customer, your inspection for LT164HP expires on 14/11/2026.',
+        ]);
+    }
+
     public function test_does_not_send_twice_for_same_schedule(): void
     {
         Http::fake([

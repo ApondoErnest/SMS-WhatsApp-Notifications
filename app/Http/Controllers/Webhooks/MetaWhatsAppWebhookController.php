@@ -30,8 +30,35 @@ class MetaWhatsAppWebhookController extends Controller
 
     public function handle(Request $request): Response
     {
+        if (! $this->signatureIsValid($request)) {
+            Log::warning('Meta WhatsApp webhook signature rejected', [
+                'ip' => $request->ip(),
+            ]);
+
+            return response('Forbidden', 403);
+        }
+
         ProcessMetaWebhookJob::dispatch($request->all());
 
         return response('EVENT_RECEIVED', 200);
+    }
+
+    private function signatureIsValid(Request $request): bool
+    {
+        $appSecret = (string) config('services.whatsapp.app_secret', '');
+
+        // Allow local/dev when the app secret is not configured yet.
+        if ($appSecret === '') {
+            return true;
+        }
+
+        $header = (string) $request->header('X-Hub-Signature-256', '');
+        if (! str_starts_with($header, 'sha256=')) {
+            return false;
+        }
+
+        $expected = 'sha256='.hash_hmac('sha256', $request->getContent(), $appSecret);
+
+        return hash_equals($expected, $header);
     }
 }

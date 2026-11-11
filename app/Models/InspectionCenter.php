@@ -19,6 +19,7 @@ class InspectionCenter extends Model
         'sms_enabled',
         'whatsapp_enabled',
         'reminder_days',
+        'notification_language',
     ];
 
     protected function casts(): array
@@ -41,6 +42,14 @@ class InspectionCenter extends Model
         rsort($days);
 
         return $days;
+    }
+
+    /**
+     * Preferred customer-facing language for SMS / WhatsApp templates.
+     */
+    public function notificationLanguage(): string
+    {
+        return $this->notification_language === 'en' ? 'en' : 'fr';
     }
 
     /**

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
 use App\Models\NotificationTemplate;
+use App\Services\Audit\AuditLogService;
 use App\Support\CurrentCenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -64,6 +65,12 @@ class TemplateController extends Controller
             'status' => 'active',
         ]);
 
+        app(AuditLogService::class)->record(
+            'template_created',
+            'Created '.$validated['channel'].'/'.$validated['language'].' template',
+            centerId: $centerId,
+        );
+
         return redirect()->route('templates.index')
             ->with('status', __('Template created successfully.'));
     }
@@ -94,6 +101,11 @@ class TemplateController extends Controller
 
         $template->update($validated);
 
+        app(AuditLogService::class)->record(
+            'template_updated',
+            'Updated '.$template->channel.'/'.$template->language.' template #'.$template->id,
+        );
+
         return redirect()->route('templates.index')
             ->with('status', __('Template updated successfully.'));
     }
@@ -102,7 +114,13 @@ class TemplateController extends Controller
     {
         abort_if($template->center_id !== app(CurrentCenter::class)->id(), 403);
 
+        $label = $template->channel.'/'.$template->language.' #'.$template->id;
         $template->delete();
+
+        app(AuditLogService::class)->record(
+            'template_deleted',
+            'Deleted '.$label.' template',
+        );
 
         return redirect()->route('templates.index')
             ->with('status', __('Template deleted.'));

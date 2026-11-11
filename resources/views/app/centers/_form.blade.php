@@ -47,6 +47,17 @@
     @error('address')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
 </div>
 
+<div>
+    <label for="notification_language" class="block text-sm font-medium text-slate-700">{{ __('Notification language') }}</label>
+    <select name="notification_language" id="notification_language" required
+        class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+        <option value="fr" @selected(old('notification_language', $center->notification_language ?? 'fr') === 'fr')>{{ __('French') }}</option>
+        <option value="en" @selected(old('notification_language', $center->notification_language ?? 'fr') === 'en')>{{ __('English') }}</option>
+    </select>
+    <p class="mt-1 text-xs text-slate-500">{{ __('Language used for SMS and WhatsApp messages sent to customers of this center.') }}</p>
+    @error('notification_language')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+</div>
+
 @if ($showStatus ?? true)
 <div>
     <label for="status" class="block text-sm font-medium text-slate-700">{{ __('Status') }}</label>

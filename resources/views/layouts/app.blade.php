@@ -39,12 +39,12 @@
                     <x-icon-upload class="h-5 w-5" />
                     {{ __('Import CSV') }}
                 </x-nav-link>
-                @endcan
 
                 <x-nav-link href="{{ route('import-history.index') }}" :active="request()->routeIs('import-history.*')">
                     <x-icon-clock class="h-5 w-5" />
                     {{ __('Import history') }}
                 </x-nav-link>
+                @endcan
 
                 @can('view-records')
                 <x-nav-link href="{{ route('records.index') }}" :active="request()->routeIs('records.*')">
@@ -53,6 +53,7 @@
                 </x-nav-link>
                 @endcan
 
+                @can('view-notifications')
                 <x-nav-link href="{{ route('schedules.index') }}" :active="request()->routeIs('schedules.*')">
                     <x-icon-bell class="h-5 w-5" />
                     {{ __('Schedules') }}
@@ -62,6 +63,7 @@
                     <x-icon-message class="h-5 w-5" />
                     {{ __('Notifications') }}
                 </x-nav-link>
+                @endcan
 
                 @can('view-reports')
                 <x-nav-link href="{{ route('reports.index') }}" :active="request()->routeIs('reports.*')">
@@ -94,6 +96,15 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/>
                     </svg>
                     {{ __('Users') }}
+                </x-nav-link>
+                @endcan
+
+                @can('view-audit-logs')
+                <x-nav-link href="{{ route('audit-logs.index') }}" :active="request()->routeIs('audit-logs.*')">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    {{ __('Audit logs') }}
                 </x-nav-link>
                 @endcan
             </nav>

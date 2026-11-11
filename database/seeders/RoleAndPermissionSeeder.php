@@ -22,6 +22,7 @@ class RoleAndPermissionSeeder extends Seeder
             'view-records',
             'view-reports',
             'view-notifications',
+            'view-audit-logs',
         ];
 
         foreach ($permissions as $permission) {

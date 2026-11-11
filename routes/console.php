@@ -11,3 +11,8 @@ Artisan::command('inspire', function () {
 Schedule::command('notifications:dispatch-due')
     ->everyFiveMinutes()
     ->withoutOverlapping();
+
+Schedule::command('backup:database')
+    ->dailyAt('02:15')
+    ->withoutOverlapping()
+    ->when(fn () => (bool) config('security.backups.enabled'));

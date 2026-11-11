@@ -229,6 +229,7 @@ All tables include `center_id` from day one for future SaaS expansion.
 | address | text nullable |
 | logo | varchar nullable |
 | status | varchar(20) default 'active' |
+| notification_language | varchar(5) default 'fr' (`fr` / `en`) — customer SMS/WhatsApp language |
 | created_at, updated_at | timestamp |
 
 ### users
@@ -392,20 +393,20 @@ All tables include `center_id` from day one for future SaaS expansion.
 
 ### Record Hash
 
-Generated from:
-- `center_id`
+Generated from (center-agnostic — unique across the whole system):
 - `licence_plate`
 - `inspection_date`
 - `expiration_date`
-- `phone_number`
+- `phone_number` (normalized)
 - `status`
 
-Stored in `record_hash` column with `UNIQUE` constraint.
+Stored in `record_hash` column with a **global** `UNIQUE` constraint.
 
 Prevents:
 - Same CSV imported twice
 - Same row duplicated
 - Repeated daily imports creating duplicates
+- The same inspection existing in more than one center
 
 ---
 
@@ -782,14 +783,16 @@ app/
 - CSRF protection
 - Input validation on all forms and uploads
 - Secure password hashing (bcrypt)
-- Role-based permissions (admin, operator)
-- File upload validation (type, size)
-- Rate limiting on login
-- Audit logs for user actions
+- Role-based permissions (admin, operator, super-admin via Spatie)
+- File upload validation (type, size, MIME)
+- Rate limiting on login (`LOGIN_MAX_ATTEMPTS` / `LOGIN_DECAY_SECONDS`)
+- Audit logs for user actions (`AuditLogService` + `/audit-logs`)
 - Environment variable protection
-- Webhook signature/token verification
+- Webhook verification:
+  - Meta: `X-Hub-Signature-256` when `META_WHATSAPP_APP_SECRET` is set
+  - Nexah: shared token `NEXAH_SMS_WEBHOOK_TOKEN` (`X-Nexah-Token` or `?token=`)
 - HTTPS in production (Let's Encrypt)
-- Daily database backups
+- Daily database backups: `php artisan backup:database` (scheduled 02:15, `DB_BACKUP_*`)
 - Cloudflare CDN/WAF
 
 ---
@@ -893,9 +896,9 @@ Because `center_id` exists from day one, the app can later expand to:
 - Horizon dedicated `imports` supervisor (higher memory/timeout)
 
 ### Phase 3 — Duplicate Prevention
-- Generate `record_hash` from center_id, licence_plate, inspection_date, expiration_date, phone_number, status
-- Add UNIQUE database constraint
-- Skip duplicate rows during import
+- Generate global `record_hash` from licence_plate, inspection_date, expiration_date, normalized phone, status (not center-scoped)
+- Add UNIQUE database constraint across all centers
+- Skip duplicate rows during import (including when another center already has the record)
 - Show duplicate count in import summary
 
 ### Phase 4 — Imported Records Management
@@ -942,13 +945,15 @@ Because `center_id` exists from day one, the app can later expand to:
 - Live dashboard card counts (existing) + link to Reports
 - `App\Services\Reports\ReportService` + `tests/Feature/ReportsTest.php`
 
-### Phase 9 — Security and Hardening
-- Validate all uploads
-- Protect admin routes
-- Add audit logs
-- Rate-limit login
-- Secure webhooks (signature verification)
-- Add backup strategy
+### Phase 9 — Security and Hardening ✅
+- CSV upload validation (extension + MIME + size + empty-file check)
+- Permission gates on imports, schedules/notifications, audit logs
+- `AuditLogService` + UI (`/audit-logs`) for login, users, templates, center, imports, password
+- Login rate limiting (`LOGIN_MAX_ATTEMPTS` / `LOGIN_DECAY_SECONDS`)
+- Meta webhook `X-Hub-Signature-256` when `META_WHATSAPP_APP_SECRET` is set
+- Nexah DLR shared token (`NEXAH_SMS_WEBHOOK_TOKEN` via header or `?token=`)
+- Daily `backup:database` schedule + prune (`DB_BACKUP_*`)
+- `tests/Feature/SecurityHardeningTest.php`
 
 ### Phase 10 — VPS Deployment
 - Install server stack (Nginx, PHP-FPM, MySQL, Redis)

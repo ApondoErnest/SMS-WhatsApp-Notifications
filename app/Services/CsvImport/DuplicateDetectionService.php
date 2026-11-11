@@ -8,9 +8,10 @@ class DuplicateDetectionService
 {
     /**
      * Generate a unique hash from the fields that define a unique inspection record.
+     *
+     * Intentionally center-agnostic so the same inspection cannot exist in more than one center.
      */
     public function generateHash(
-        int $centerId,
         string $licencePlate,
         ?string $inspectionDate,
         string $expirationDate,
@@ -18,7 +19,6 @@ class DuplicateDetectionService
         string $status,
     ): string {
         $raw = implode('|', [
-            $centerId,
             mb_strtoupper(trim($licencePlate)),
             $inspectionDate ?? '',
             $expirationDate,

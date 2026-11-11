@@ -283,7 +283,6 @@ class CsvImportService
                 $expirationDate = $this->parseDate($mapped['expiration_date']);
 
                 $recordHash = $this->duplicateService->generateHash(
-                    $batch->center_id,
                     $mapped['licence_plate'],
                     $inspectionDate,
                     $expirationDate,

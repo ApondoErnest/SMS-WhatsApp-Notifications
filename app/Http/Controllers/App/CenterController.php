@@ -5,6 +5,8 @@ namespace App\Http\Controllers\App;
 use App\Http\Controllers\Controller;
 use App\Models\InspectionCenter;
 use App\Models\User;
+use App\Services\Audit\AuditLogService;
+use App\Services\Notification\DefaultCenterTemplates;
 use App\Support\CurrentCenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -33,15 +35,23 @@ class CenterController extends Controller
         return view('app.centers.create');
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, DefaultCenterTemplates $defaultTemplates): RedirectResponse
     {
         $center = InspectionCenter::create($this->validated($request));
+
+        $defaultTemplates->seedFor($center);
 
         session(['current_center_id' => $center->id]);
         app(CurrentCenter::class)->forget();
 
+        app(AuditLogService::class)->record(
+            'center_created',
+            'Created center '.$center->name.' with default templates',
+            centerId: $center->id,
+        );
+
         return redirect()->route('centers.index')
-            ->with('status', __('Center created successfully.'));
+            ->with('status', __('Center created successfully. Default SMS and WhatsApp templates were added.'));
     }
 
     public function edit(InspectionCenter $center): View
@@ -52,6 +62,12 @@ class CenterController extends Controller
     public function update(Request $request, InspectionCenter $center): RedirectResponse
     {
         $center->update($this->validated($request, $center));
+
+        app(AuditLogService::class)->record(
+            'center_updated',
+            'Updated center '.$center->name,
+            centerId: $center->id,
+        );
 
         return redirect()->route('centers.index')
             ->with('status', __('Center updated successfully.'));
@@ -65,6 +81,12 @@ class CenterController extends Controller
 
         session(['current_center_id' => (int) $validated['center_id']]);
         app(CurrentCenter::class)->forget();
+
+        app(AuditLogService::class)->record(
+            'center_switched',
+            'Switched current center to #'.$validated['center_id'],
+            centerId: (int) $validated['center_id'],
+        );
 
         return redirect()->route('dashboard')->with('status', __('Center switched.'));
     }
@@ -114,7 +136,14 @@ class CenterController extends Controller
         }
 
         $ids = $centers->pluck('id')->all();
+        $names = $centers->pluck('name')->implode(', ');
         $currentId = session('current_center_id');
+
+        app(AuditLogService::class)->record(
+            'center_deleted',
+            'Deleted center(s): '.$names,
+            centerId: null,
+        );
 
         DB::transaction(function () use ($ids): void {
             User::query()->whereIn('center_id', $ids)->delete();
@@ -144,6 +173,7 @@ class CenterController extends Controller
             'email' => ['nullable', 'email', 'max:255'],
             'address' => ['nullable', 'string', 'max:1000'],
             'status' => ['required', Rule::in(['active', 'inactive'])],
+            'notification_language' => ['required', Rule::in(['fr', 'en'])],
         ]);
 
         $validated['code'] = filled($validated['code'] ?? null) ? $validated['code'] : null;

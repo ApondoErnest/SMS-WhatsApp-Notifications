@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Jobs\ProcessCsvImportJob;
 use App\Models\ImportBatch;
+use App\Services\Audit\AuditLogService;
 use App\Support\CurrentCenter;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -27,7 +28,12 @@ class CsvImportUpload extends Component
         $maxKb = max(1024, (int) config('import.max_file_size_mb', 64) * 1024);
 
         $this->validate([
-            'file' => ['required', 'file', 'max:'.$maxKb],
+            'file' => [
+                'required',
+                'file',
+                'mimes:csv,txt',
+                'max:'.$maxKb,
+            ],
         ]);
 
         $originalName = $this->file->getClientOriginalName();
@@ -39,17 +45,31 @@ class CsvImportUpload extends Component
             return;
         }
 
+        if ($this->file->getSize() < 1) {
+            $this->addError('file', __('The uploaded file is empty.'));
+
+            return;
+        }
+
         $user = auth()->user();
+        $centerId = app(CurrentCenter::class)->id();
         $storedPath = $this->file->store('imports', 'local');
 
         $batch = ImportBatch::create([
-            'center_id' => app(CurrentCenter::class)->id(),
+            'center_id' => $centerId,
             'uploaded_by' => $user->id,
             'filename' => $storedPath,
             'original_filename' => $originalName,
             'status' => 'pending',
             'processed_rows' => 0,
         ]);
+
+        app(AuditLogService::class)->record(
+            'csv_import_started',
+            'Import batch #'.$batch->id.' uploaded ('.$originalName.')',
+            centerId: $centerId,
+            userId: $user->id,
+        );
 
         $this->batchId = $batch->id;
         $this->status = 'processing';
