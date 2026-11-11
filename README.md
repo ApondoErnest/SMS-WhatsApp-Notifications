@@ -9,7 +9,7 @@ Laravel web application for a roadworthiness inspection center (*Visite Techniqu
 ## Features
 
 - Secure staff login with role-based access (admin, operator)
-- Daily CSV import (semicolon-delimited) with validation and preview
+- Daily CSV import (semicolon-delimited) with batched inserts, progress tracking, and large-file hardening
 - Duplicate detection via record hash
 - Searchable imported records table with filters, pagination, export
 - Certificate expiry tracking and automatic reminder scheduling

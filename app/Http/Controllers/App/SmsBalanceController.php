@@ -6,15 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Services\Sms\NexahSmsException;
 use App\Services\Sms\NexahSmsService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use RuntimeException;
 use Throwable;
 
 class SmsBalanceController extends Controller
 {
     /**
-     * JSON endpoint used by the Centers page refresh button.
+     * JSON endpoint used by the Centers page (async load + refresh).
      */
-    public function __invoke(NexahSmsService $sms): JsonResponse
+    public function __invoke(Request $request, NexahSmsService $sms): JsonResponse
     {
         if (! $sms->isConfigured()) {
             return response()->json([
@@ -24,7 +25,7 @@ class SmsBalanceController extends Controller
         }
 
         try {
-            $balance = $sms->getBalance();
+            $balance = $sms->getBalance($request->boolean('fresh'));
         } catch (NexahSmsException|RuntimeException|Throwable $e) {
             return response()->json([
                 'ok' => false,

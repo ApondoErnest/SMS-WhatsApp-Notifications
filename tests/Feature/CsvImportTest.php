@@ -207,4 +207,90 @@ class CsvImportTest extends TestCase
         $record = InspectionRecord::first();
         $this->assertEquals('2027-01-20', $record->expiration_date->format('Y-m-d'));
     }
+
+    public function test_detects_duplicates_within_same_file(): void
+    {
+        $csv = "Regitration date;Inspection date;Expiration date;Cat.;Type;Licence plate;Category;Customer;Phone number;Status\n";
+        $csv .= "15/01/2026;20/01/2026;20/01/2027;A;VT;LT 1234 AB;VP;Jean;677123456;APTE\n";
+        $csv .= "15/01/2026;20/01/2026;20/01/2027;A;VT;LT 1234 AB;VP;Jean;677123456;APTE\n";
+
+        $path = $this->createCsvFile($csv, 'samefile-dup.csv');
+        $batch = $this->createBatch($path);
+
+        app(CsvImportService::class)->process($batch);
+        $batch->refresh();
+
+        $this->assertEquals('completed', $batch->status);
+        $this->assertEquals(1, $batch->imported_rows);
+        $this->assertEquals(1, $batch->duplicate_rows);
+        $this->assertEquals(1, InspectionRecord::count());
+    }
+
+    public function test_imports_many_rows_in_chunks(): void
+    {
+        config(['import.insert_chunk_size' => 25, 'import.progress_every' => 40]);
+
+        $csv = "Regitration date;Inspection date;Expiration date;Cat.;Type;Licence plate;Category;Customer;Phone number;Status\n";
+        for ($i = 1; $i <= 120; $i++) {
+            $plate = sprintf('LT %04d AB', $i);
+            $phone = sprintf('67%07d', $i);
+            $csv .= "15/01/2026;20/01/2026;20/01/2027;A;VT;{$plate};VP;Customer {$i};{$phone};APTE\n";
+        }
+
+        $path = $this->createCsvFile($csv, 'chunked.csv');
+        $batch = $this->createBatch($path);
+
+        app(CsvImportService::class)->process($batch);
+        $batch->refresh();
+
+        $this->assertEquals('completed', $batch->status);
+        $this->assertEquals(120, $batch->total_rows);
+        $this->assertEquals(120, $batch->imported_rows);
+        $this->assertEquals(120, $batch->processed_rows);
+        $this->assertEquals(120, InspectionRecord::count());
+        $this->assertGreaterThan(0, NotificationSchedule::count());
+    }
+
+    public function test_stops_at_configured_max_rows(): void
+    {
+        config(['import.max_rows' => 3, 'import.insert_chunk_size' => 2]);
+
+        $csv = "Regitration date;Inspection date;Expiration date;Cat.;Type;Licence plate;Category;Customer;Phone number;Status\n";
+        for ($i = 1; $i <= 6; $i++) {
+            $plate = sprintf('MX %04d AB', $i);
+            $phone = sprintf('68%07d', $i);
+            $csv .= "15/01/2026;20/01/2026;20/01/2027;A;VT;{$plate};VP;Customer {$i};{$phone};APTE\n";
+        }
+
+        $path = $this->createCsvFile($csv, 'maxrows.csv');
+        $batch = $this->createBatch($path);
+
+        app(CsvImportService::class)->process($batch);
+        $batch->refresh();
+
+        $this->assertEquals('completed', $batch->status);
+        $this->assertEquals(3, $batch->imported_rows);
+        $this->assertEquals(3, InspectionRecord::count());
+        $this->assertNotNull($batch->error_message);
+    }
+
+    public function test_caps_stored_failed_row_samples(): void
+    {
+        config(['import.max_error_log_entries' => 2]);
+
+        $csv = "Regitration date;Inspection date;Expiration date;Cat.;Type;Licence plate;Category;Customer;Phone number;Status\n";
+        $csv .= "15/01/2026;20/01/2026;20/01/2027;A;VT;;VP;No Plate;677111111;APTE\n";
+        $csv .= "15/01/2026;20/01/2026;20/01/2027;A;VT;LT 1;VP;;677222222;APTE\n";
+        $csv .= "15/01/2026;20/01/2026;20/01/2027;A;VT;LT 2;VP;No Phone;;APTE\n";
+        $csv .= "15/01/2026;20/01/2026;20/01/2027;A;VT;LT 3;VP;No Status;677333333;\n";
+
+        $path = $this->createCsvFile($csv, 'cap-failed.csv');
+        $batch = $this->createBatch($path);
+
+        app(CsvImportService::class)->process($batch);
+        $batch->refresh();
+
+        $this->assertEquals(4, $batch->failed_rows);
+        $this->assertEquals(2, FailedImportRow::count());
+    }
 }

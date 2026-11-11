@@ -21,7 +21,7 @@ class ImportHistoryController extends Controller
         abort_if($batch->center_id !== $centerId, 403);
 
         $records = $batch->inspectionRecords()->paginate(25, ['*'], 'records_page');
-        $failedRows = $batch->failedRows()->get();
+        $failedRows = $batch->failedRows()->orderBy('row_number')->paginate(50, ['*'], 'failed_page');
 
         return view('app.import-history.show', compact('batch', 'records', 'failedRows'));
     }

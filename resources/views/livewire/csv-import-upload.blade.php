@@ -19,7 +19,12 @@
                         {{ __('Browse') }}
                         <input type="file" wire:model="file" accept=".csv" class="hidden" x-ref="fileInput" />
                     </label>
-                    <p class="mt-2 text-xs text-slate-500">{{ __('CSV with semicolon separator (;), max 10 MB') }}</p>
+                    <p class="mt-2 text-xs text-slate-500">
+                        {{ __('CSV with semicolon separator (;), max :size MB, up to :rows rows', [
+                            'size' => number_format($maxFileSizeMb),
+                            'rows' => number_format($maxRows),
+                        ]) }}
+                    </p>
                 </div>
             </div>
 
@@ -55,9 +60,9 @@
         <div wire:poll.2s="checkProgress" class="space-y-6">
             {{-- Status badge --}}
             <div class="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-5 py-4">
-                @if ($status === 'processing')
+                @if ($status === 'processing' || $status === 'pending')
                     <div class="h-3 w-3 animate-pulse rounded-full bg-amber-400"></div>
-                    <span class="text-sm font-medium text-amber-700">{{ __('Processing in progress…') }}</span>
+                    <span class="text-sm font-medium text-amber-700">{{ $message ?: __('Processing in progress…') }}</span>
                 @elseif ($status === 'completed')
                     <div class="h-3 w-3 rounded-full bg-green-500"></div>
                     <span class="text-sm font-medium text-green-700">{{ $message }}</span>
@@ -69,7 +74,11 @@
 
             {{-- Summary cards --}}
             @if (! empty($summary))
-                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                    <div class="rounded-xl border border-slate-200 bg-white p-5">
+                        <p class="text-sm text-slate-500">{{ __('Processed') }}</p>
+                        <p class="mt-1 text-2xl font-bold text-slate-900">{{ number_format($summary['processed_rows'] ?? $summary['total_rows'] ?? 0) }}</p>
+                    </div>
                     <div class="rounded-xl border border-slate-200 bg-white p-5">
                         <p class="text-sm text-slate-500">{{ __('Total rows') }}</p>
                         <p class="mt-1 text-2xl font-bold text-slate-900">{{ number_format($summary['total_rows'] ?? 0) }}</p>

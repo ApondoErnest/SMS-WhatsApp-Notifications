@@ -17,7 +17,9 @@ class ImportBatch extends Model
         'imported_rows',
         'duplicate_rows',
         'failed_rows',
+        'processed_rows',
         'status',
+        'error_message',
     ];
 
     public function center(): BelongsTo

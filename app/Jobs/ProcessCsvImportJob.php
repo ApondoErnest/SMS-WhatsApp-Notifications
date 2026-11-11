@@ -14,7 +14,10 @@ class ProcessCsvImportJob implements ShouldQueue
 
     public int $tries = 1;
 
-    public int $timeout = 300;
+    /** Large CSV imports can run for a long time; Horizon import supervisor must exceed this. */
+    public int $timeout = 3600;
+
+    public int $memory = 512;
 
     public function __construct(public int $importBatchId)
     {
@@ -29,7 +32,11 @@ class ProcessCsvImportJob implements ShouldQueue
             return;
         }
 
-        $batch->update(['status' => 'processing']);
+        $batch->update([
+            'status' => 'processing',
+            'processed_rows' => 0,
+            'error_message' => null,
+        ]);
 
         $importService->process($batch);
     }
@@ -37,6 +44,9 @@ class ProcessCsvImportJob implements ShouldQueue
     public function failed(Throwable $exception): void
     {
         $batch = ImportBatch::find($this->importBatchId);
-        $batch?->update(['status' => 'failed']);
+        $batch?->update([
+            'status' => 'failed',
+            'error_message' => mb_substr($exception->getMessage(), 0, 2000),
+        ]);
     }
 }

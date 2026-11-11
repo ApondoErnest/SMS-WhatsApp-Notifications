@@ -4,7 +4,7 @@
     "type": "module",
     "scripts": {
         "app": "php artisan serve --host=127.0.0.1 --port=8001",
-        "queue": "php artisan queue:work redis --queue=imports,notifications,webhooks,default --tries=3 --timeout=600",
+        "queue": "php artisan queue:work redis --queue=imports,notifications,webhooks,default --tries=3 --timeout=3600",
         "horizon": "php artisan horizon",
         "scheduler": "php artisan schedule:work",
         "local": "concurrently -c \"#93c5fd,#a7f3d0,#fde68a,#f9a8d4\" --names=app,queue,scheduler,vite \"npm:app\" \"npm:queue\" \"npm:scheduler\" \"npm:dev\" --kill-others",

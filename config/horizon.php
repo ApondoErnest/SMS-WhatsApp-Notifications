@@ -197,9 +197,21 @@ return [
     */
 
     'defaults' => [
+        'supervisor-imports' => [
+            'connection' => 'redis',
+            'queue' => ['imports'],
+            'balance' => 'simple',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 512,
+            'tries' => 1,
+            'timeout' => 3600,
+            'nice' => 0,
+        ],
         'supervisor-1' => [
             'connection' => 'redis',
-            'queue' => ['imports', 'notifications', 'webhooks', 'default'],
+            'queue' => ['notifications', 'webhooks', 'default'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
             'maxProcesses' => 1,
@@ -214,6 +226,9 @@ return [
 
     'environments' => [
         'production' => [
+            'supervisor-imports' => [
+                'maxProcesses' => 2,
+            ],
             'supervisor-1' => [
                 'maxProcesses' => 10,
                 'balanceMaxShift' => 1,
@@ -222,6 +237,9 @@ return [
         ],
 
         'local' => [
+            'supervisor-imports' => [
+                'maxProcesses' => 1,
+            ],
             'supervisor-1' => [
                 'maxProcesses' => 3,
             ],

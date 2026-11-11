@@ -154,6 +154,7 @@
     "Balance expires": "Balance expires",
     "Refresh": "Refresh",
     "Refreshing…": "Refreshing…",
+    "Loading…": "Loading…",
     "Unavailable": "Unavailable",
     "Could not refresh SMS balance.": "Could not refresh SMS balance.",
     "Nexah SMS is not configured. Set NEXAH_SMS_USER, NEXAH_SMS_PASSWORD, and NEXAH_SMS_SENDER_ID.": "Nexah SMS is not configured. Set NEXAH_SMS_USER, NEXAH_SMS_PASSWORD, and NEXAH_SMS_SENDER_ID.",
@@ -317,5 +318,11 @@
     "Error": "Error",
     "SMS delivered": "SMS delivered",
     "WhatsApp delivered": "WhatsApp delivered",
-    "SMS failed": "SMS failed"
+    "SMS failed": "SMS failed",
+    "CSV with semicolon separator (;), max :size MB, up to :rows rows": "CSV with semicolon separator (;), max :size MB, up to :rows rows",
+    "Processed": "Processed",
+    "Processing… :count rows so far": "Processing… :count rows so far",
+    "Import stopped after :max rows (file exceeded the configured limit).": "Import stopped after :max rows (file exceeded the configured limit).",
+    "Showing stored samples only (:shown of :total). Download the CSV for the full failure list when available.": "Showing stored samples only (:shown of :total). Download the CSV for the full failure list when available.",
+    "No failed-row samples stored.": "No failed-row samples stored."
 }

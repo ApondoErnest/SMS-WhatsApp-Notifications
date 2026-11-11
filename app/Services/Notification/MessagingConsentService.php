@@ -75,4 +75,56 @@ class MessagingConsentService
 
         $this->grant($centerId, $phoneE164, 'whatsapp', 'import');
     }
+
+    /**
+     * Batch variant used by large CSV imports.
+     *
+     * @param  list<string>  $phonesE164
+     */
+    public function ensureImportConsentMany(int $centerId, array $phonesE164): void
+    {
+        $phones = array_values(array_unique(array_filter($phonesE164)));
+
+        if ($phones === []) {
+            return;
+        }
+
+        $existing = MessagingConsent::query()
+            ->where('center_id', $centerId)
+            ->where('channel', 'whatsapp')
+            ->whereIn('phone_number', $phones)
+            ->get()
+            ->keyBy('phone_number');
+
+        $now = Carbon::now();
+        $rows = [];
+
+        foreach ($phones as $phone) {
+            $current = $existing->get($phone);
+
+            if ($current && (! $current->consented || $current->opted_out_at !== null)) {
+                continue;
+            }
+
+            if ($current) {
+                continue;
+            }
+
+            $rows[] = [
+                'center_id' => $centerId,
+                'phone_number' => $phone,
+                'channel' => 'whatsapp',
+                'consented' => true,
+                'opted_out_at' => null,
+                'source' => 'import',
+                'notes' => null,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        foreach (array_chunk($rows, 500) as $chunk) {
+            MessagingConsent::query()->insert($chunk);
+        }
+    }
 }

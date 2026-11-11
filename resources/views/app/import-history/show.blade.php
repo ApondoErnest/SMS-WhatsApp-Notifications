@@ -20,6 +20,12 @@
         <x-dashboard-card :label="__('Failed')" :value="number_format($batch->failed_rows)" color="red" />
     </div>
 
+    @if ($batch->error_message)
+        <div class="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            {{ $batch->error_message }}
+        </div>
+    @endif
+
     {{-- Imported records --}}
     <div class="mb-8">
         <h2 class="mb-3 text-lg font-semibold text-slate-900">{{ __('Imported records') }}</h2>
@@ -59,10 +65,13 @@
     </div>
 
     {{-- Failed rows --}}
-    @if ($failedRows->count())
+    @if ($batch->failed_rows > 0)
         <div>
-            <div class="mb-3 flex items-center justify-between">
-                <h2 class="text-lg font-semibold text-red-800">{{ __('Failed rows') }}</h2>
+            <div class="mb-3 flex items-center justify-between gap-3">
+                <h2 class="text-lg font-semibold text-red-800">
+                    {{ __('Failed rows') }}
+                    <span class="text-sm font-normal text-red-600">({{ number_format($batch->failed_rows) }})</span>
+                </h2>
                 <a href="{{ route('import-history.failed-export', $batch) }}"
                     class="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -71,6 +80,14 @@
                     {{ __('Download report') }}
                 </a>
             </div>
+            @if ($failedRows->total() < $batch->failed_rows)
+                <p class="mb-3 text-xs text-amber-700">
+                    {{ __('Showing stored samples only (:shown of :total). Download the CSV for the full failure list when available.', [
+                        'shown' => number_format($failedRows->total()),
+                        'total' => number_format($batch->failed_rows),
+                    ]) }}
+                </p>
+            @endif
             <div class="overflow-hidden rounded-xl border border-red-200 bg-white shadow-sm">
                 <table class="min-w-full divide-y divide-red-100 text-sm">
                     <thead class="bg-red-50">
@@ -81,7 +98,7 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-red-50">
-                        @foreach ($failedRows as $row)
+                        @forelse ($failedRows as $row)
                             <tr>
                                 <td class="px-4 py-3 font-mono text-xs">{{ $row->row_number }}</td>
                                 <td class="px-4 py-3 text-red-700">{{ $row->error_message }}</td>
@@ -89,10 +106,17 @@
                                     <code class="rounded bg-slate-100 px-1 py-0.5">{{ json_encode($row->row_data, JSON_UNESCAPED_UNICODE) }}</code>
                                 </td>
                             </tr>
-                        @endforeach
+                        @empty
+                            <tr>
+                                <td colspan="3" class="px-4 py-6 text-center text-slate-500">{{ __('No failed-row samples stored.') }}</td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
+            @if ($failedRows->hasPages())
+                <div class="mt-4">{{ $failedRows->links() }}</div>
+            @endif
         </div>
     @endif
 @endsection

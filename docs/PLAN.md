@@ -878,16 +878,19 @@ Because `center_id` exists from day one, the app can later expand to:
 - Create users and roles (admin, operator)
 - Create dashboard
 
-### Phase 2 — CSV Import Core
+### Phase 2 — CSV Import Core ✅ (hardened for large files)
 - Build upload page
 - Validate CSV file (.csv, `;` separator)
 - Validate headers (including `Regitration date` spelling)
 - Parse semicolon-separated values
 - Normalize dates
 - Normalize phone numbers (E.164)
-- Save valid rows to `inspection_records`
-- Reject invalid rows to `failed_import_rows`
-- Track failed row details
+- Save valid rows to `inspection_records` in **batched inserts** (default 500)
+- Reject invalid rows to `failed_import_rows` (sample cap configurable)
+- Progress fields on `import_batches` (`processed_rows`, `error_message`)
+- Chunked post-import schedule generation
+- Limits: `CSV_MAX_FILE_SIZE_MB` (64), `CSV_MAX_ROWS` (250000), import job timeout 3600s
+- Horizon dedicated `imports` supervisor (higher memory/timeout)
 
 ### Phase 3 — Duplicate Prevention
 - Generate `record_hash` from center_id, licence_plate, inspection_date, expiration_date, phone_number, status

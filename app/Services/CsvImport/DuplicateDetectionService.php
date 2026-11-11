@@ -33,4 +33,20 @@ class DuplicateDetectionService
     {
         return InspectionRecord::where('record_hash', $recordHash)->exists();
     }
+
+    /**
+     * @param  list<string>  $hashes
+     * @return list<string>
+     */
+    public function existingHashes(array $hashes): array
+    {
+        if ($hashes === []) {
+            return [];
+        }
+
+        return InspectionRecord::query()
+            ->whereIn('record_hash', $hashes)
+            ->pluck('record_hash')
+            ->all();
+    }
 }

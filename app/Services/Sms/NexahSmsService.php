@@ -3,6 +3,7 @@
 namespace App\Services\Sms;
 
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -101,49 +102,58 @@ class NexahSmsService
     /**
      * @return array{credit: int, account_expires_at: ?string, balance_expires_at: ?string, raw: array}
      */
-    public function getBalance(): array
+    public function getBalance(bool $fresh = false): array
     {
         if (! $this->isConfigured()) {
             throw new RuntimeException('Nexah SMS API is not configured.');
         }
 
-        try {
-            $response = Http::acceptJson()
-                ->asJson()
-                ->timeout(30)
-                ->post($this->endpoint('smscredit'), [
-                    'user' => config('services.nexah.user'),
-                    'password' => config('services.nexah.password'),
-                ])
-                ->throw();
-        } catch (RequestException $e) {
-            Log::warning('Nexah SMS balance check failed', [
-                'error' => $e->getMessage(),
-                'body' => $e->response?->json(),
-            ]);
+        $cacheKey = 'nexah.sms.balance.'.sha1((string) config('services.nexah.user'));
 
-            throw new NexahSmsException(
-                $e->response?->json('responsemessage')
-                    ?? $e->response?->json('responsedescription')
-                    ?? $e->getMessage(),
-                previous: $e,
-            );
+        if ($fresh) {
+            Cache::forget($cacheKey);
         }
 
-        $json = $response->json() ?? [];
+        return Cache::remember($cacheKey, now()->addSeconds(90), function (): array {
+            try {
+                $response = Http::acceptJson()
+                    ->asJson()
+                    ->timeout(8)
+                    ->connectTimeout(3)
+                    ->post($this->endpoint('smscredit'), [
+                        'user' => config('services.nexah.user'),
+                        'password' => config('services.nexah.password'),
+                    ])
+                    ->throw();
+            } catch (RequestException $e) {
+                Log::warning('Nexah SMS balance check failed', [
+                    'error' => $e->getMessage(),
+                    'body' => $e->response?->json(),
+                ]);
 
-        if (! array_key_exists('credit', $json)) {
-            throw new NexahSmsException(
-                (string) ($json['responsemessage'] ?? $json['responsedescription'] ?? 'Nexah balance response was invalid.'),
-            );
-        }
+                throw new NexahSmsException(
+                    $e->response?->json('responsemessage')
+                        ?? $e->response?->json('responsedescription')
+                        ?? $e->getMessage(),
+                    previous: $e,
+                );
+            }
 
-        return [
-            'credit' => (int) $json['credit'],
-            'account_expires_at' => $json['accountexpdate'] ?? null,
-            'balance_expires_at' => $json['balanceexpdate'] ?? null,
-            'raw' => $json,
-        ];
+            $json = $response->json() ?? [];
+
+            if (! array_key_exists('credit', $json)) {
+                throw new NexahSmsException(
+                    (string) ($json['responsemessage'] ?? $json['responsedescription'] ?? 'Nexah balance response was invalid.'),
+                );
+            }
+
+            return [
+                'credit' => (int) $json['credit'],
+                'account_expires_at' => $json['accountexpdate'] ?? null,
+                'balance_expires_at' => $json['balanceexpdate'] ?? null,
+                'raw' => $json,
+            ];
+        });
     }
 
     /**

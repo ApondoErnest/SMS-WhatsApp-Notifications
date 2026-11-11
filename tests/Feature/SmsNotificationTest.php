@@ -343,7 +343,7 @@ class SmsNotificationTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_centers_page_shows_sms_balance_inline_for_super_admin(): void
+    public function test_centers_page_loads_without_blocking_on_nexah_and_shows_balance_widget(): void
     {
         Http::fake([
             'smsvas.com/*/smscredit' => Http::response([
@@ -358,8 +358,32 @@ class SmsNotificationTest extends TestCase
             ->assertOk()
             ->assertSee(__('SMS balance'))
             ->assertSee(__('Refresh'))
-            ->assertDontSee(__('Check SMS balance'))
-            ->assertSee('6124', false);
+            ->assertSee(__('Loading…'))
+            ->assertDontSee(__('Check SMS balance'));
+
+        // Page render must not call Nexah synchronously.
+        Http::assertNothingSent();
+    }
+
+    public function test_sms_balance_endpoint_uses_cache_unless_fresh(): void
+    {
+        Http::fake([
+            'smsvas.com/*/smscredit' => Http::response([
+                'accountexpdate' => '26/03/2027',
+                'balanceexpdate' => '07/09/2027',
+                'credit' => 6124,
+            ], 200),
+        ]);
+
+        $this->actingAs($this->superAdmin)->getJson(route('sms.balance'))->assertOk();
+        $this->actingAs($this->superAdmin)->getJson(route('sms.balance'))->assertOk();
+        Http::assertSentCount(1);
+
+        $this->actingAs($this->superAdmin)
+            ->getJson(route('sms.balance', ['fresh' => 1]))
+            ->assertOk()
+            ->assertJsonPath('credit', 6124);
+        Http::assertSentCount(2);
     }
 
     private function makeSchedule(string $date, string $channel = 'sms'): NotificationSchedule

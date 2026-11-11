@@ -12,20 +12,26 @@
             <div
                 class="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm"
                 x-data="{
-                    ok: @js((bool) ($smsBalance['ok'] ?? false)),
-                    credit: @js($smsBalance['credit'] ?? null),
-                    accountExpiresAt: @js($smsBalance['account_expires_at'] ?? null),
-                    balanceExpiresAt: @js($smsBalance['balance_expires_at'] ?? null),
-                    message: @js($smsBalance['message'] ?? null),
-                    loading: false,
+                    ok: false,
+                    credit: null,
+                    accountExpiresAt: null,
+                    balanceExpiresAt: null,
+                    message: null,
+                    loading: true,
                     get formattedCredit() {
                         if (this.credit === null || this.credit === undefined) return '—';
                         return new Intl.NumberFormat().format(this.credit);
                     },
-                    async refresh() {
+                    init() {
+                        this.refresh(false);
+                    },
+                    async refresh(fresh = true) {
                         this.loading = true;
                         try {
-                            const response = await fetch(@js(route('sms.balance')), {
+                            const url = fresh
+                                ? @js(route('sms.balance', ['fresh' => 1]))
+                                : @js(route('sms.balance'));
+                            const response = await fetch(url, {
                                 headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                                 credentials: 'same-origin',
                             });
@@ -46,13 +52,16 @@
             >
                 <div class="min-w-0">
                     <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{{ __('SMS balance') }}</p>
-                    <template x-if="ok">
+                    <template x-if="loading && !ok && !message">
+                        <p class="text-sm font-medium text-slate-400">{{ __('Loading…') }}</p>
+                    </template>
+                    <template x-if="!loading && ok">
                         <p class="text-sm font-semibold text-slate-900">
                             <span x-text="formattedCredit"></span>
                             <span class="font-normal text-slate-500">{{ __('credits') }}</span>
                         </p>
                     </template>
-                    <template x-if="!ok">
+                    <template x-if="!loading && !ok">
                         <p class="max-w-xs truncate text-sm font-medium text-red-600" x-text="message || @js(__('Unavailable'))" :title="message"></p>
                     </template>
                     <p class="text-xs text-slate-400" x-show="ok && balanceExpiresAt">
@@ -60,7 +69,7 @@
                     </p>
                 </div>
                 <button type="button"
-                    @click="refresh()"
+                    @click="refresh(true)"
                     :disabled="loading"
                     class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 disabled:cursor-wait disabled:opacity-60">
                     <svg class="h-3.5 w-3.5" :class="loading && 'animate-spin'" fill="none" stroke="currentColor" viewBox="0 0 24 24">

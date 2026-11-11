@@ -70,21 +70,39 @@ class CsvImportService
         $filePath = Storage::disk('local')->path($batch->filename);
 
         if (! file_exists($filePath)) {
-            $batch->update(['status' => 'failed']);
+            $batch->update([
+                'status' => 'failed',
+                'error_message' => 'Uploaded file is missing on disk.',
+            ]);
+
             return;
         }
 
         $handle = fopen($filePath, 'r');
         if ($handle === false) {
-            $batch->update(['status' => 'failed']);
+            $batch->update([
+                'status' => 'failed',
+                'error_message' => 'Unable to open uploaded CSV file.',
+            ]);
+
             return;
         }
 
+        $maxRows = max(1, (int) config('import.max_rows', 250000));
+        $chunkSize = max(50, (int) config('import.insert_chunk_size', 500));
+        $progressEvery = max(100, (int) config('import.progress_every', 1000));
+        $maxFailedLogs = max(0, (int) config('import.max_error_log_entries', 1000));
+        $delimiter = (string) config('import.csv_delimiter', ';');
+
         try {
-            $headerLine = fgetcsv($handle, 0, ';', '"', '');
+            $headerLine = fgetcsv($handle, 0, $delimiter, '"', '');
 
             if ($headerLine === false || $headerLine === null) {
-                $batch->update(['status' => 'failed']);
+                $batch->update([
+                    'status' => 'failed',
+                    'error_message' => 'CSV file is empty or unreadable.',
+                ]);
+
                 return;
             }
 
@@ -92,14 +110,18 @@ class CsvImportService
             $columnMap = $this->mapHeaders($headerLine);
 
             if ($columnMap === null) {
-                $batch->update(['status' => 'failed']);
+                $batch->update([
+                    'status' => 'failed',
+                    'error_message' => 'Invalid or missing CSV headers. Expected: '.implode('; ', self::EXPECTED_HEADERS),
+                ]);
                 FailedImportRow::create([
                     'center_id' => $batch->center_id,
                     'import_batch_id' => $batch->id,
                     'row_number' => 0,
                     'row_data' => $headerLine,
-                    'error_message' => 'Invalid or missing CSV headers. Expected: ' . implode('; ', self::EXPECTED_HEADERS),
+                    'error_message' => 'Invalid or missing CSV headers. Expected: '.implode('; ', self::EXPECTED_HEADERS),
                 ]);
+
                 return;
             }
 
@@ -108,33 +130,124 @@ class CsvImportService
             $duplicates = 0;
             $failed = 0;
             $totalRows = 0;
-            $createdRecords = [];
+            $failedLogsStored = 0;
+            $hitRowLimit = false;
+            $seenHashes = [];
+            $insertBuffer = [];
+            $failedBuffer = [];
+            $now = now();
 
-            while (($row = fgetcsv($handle, 0, ';', '"', '')) !== false) {
+            $flushInserts = function () use (
+                &$insertBuffer,
+                &$imported,
+                &$duplicates,
+                $batch,
+                $chunkSize,
+            ): void {
+                if ($insertBuffer === []) {
+                    return;
+                }
+
+                $hashes = array_column($insertBuffer, 'record_hash');
+                $existing = array_flip($this->duplicateService->existingHashes($hashes));
+
+                $toInsert = [];
+                $phones = [];
+
+                foreach ($insertBuffer as $row) {
+                    if (isset($existing[$row['record_hash']])) {
+                        $duplicates++;
+
+                        continue;
+                    }
+
+                    $existing[$row['record_hash']] = true;
+                    $toInsert[] = $row;
+                    $phones[] = $row['normalized_phone_number'];
+                }
+
+                foreach (array_chunk($toInsert, $chunkSize) as $chunk) {
+                    try {
+                        InspectionRecord::query()->insert($chunk);
+                        $imported += count($chunk);
+                    } catch (\Illuminate\Database\QueryException $e) {
+                        // Fallback: insert row-by-row so unique collisions become duplicates.
+                        foreach ($chunk as $row) {
+                            try {
+                                InspectionRecord::query()->insert([$row]);
+                                $imported++;
+                            } catch (\Illuminate\Database\QueryException $inner) {
+                                if (str_contains($inner->getMessage(), 'Duplicate') || str_contains($inner->getMessage(), 'UNIQUE')) {
+                                    $duplicates++;
+                                } else {
+                                    throw $inner;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                $this->consentService->ensureImportConsentMany($batch->center_id, $phones);
+                $insertBuffer = [];
+            };
+
+            $flushFailed = function () use (&$failedBuffer): void {
+                if ($failedBuffer === []) {
+                    return;
+                }
+
+                foreach (array_chunk($failedBuffer, 500) as $chunk) {
+                    FailedImportRow::query()->insert($chunk);
+                }
+
+                $failedBuffer = [];
+            };
+
+            while (($row = fgetcsv($handle, 0, $delimiter, '"', '')) !== false) {
                 $rowNumber++;
 
-                if (count($row) === 1 && trim($row[0]) === '') {
+                if (count($row) === 1 && trim((string) $row[0]) === '') {
                     continue;
                 }
 
-                $mapped = $this->mapRow($row, $columnMap, $headerLine);
+                $mapped = $this->mapRow($row, $columnMap);
 
                 if ($this->isSkippedStatus($mapped['status'] ?? '')) {
                     continue;
                 }
 
-                $totalRows++;
-                $errors = $this->validateRow($mapped, $rowNumber);
+                if ($totalRows >= $maxRows) {
+                    $hitRowLimit = true;
+                    break;
+                }
 
-                if (! empty($errors)) {
+                $totalRows++;
+
+                $errors = $this->validateRow($mapped);
+
+                if ($errors !== []) {
                     $failed++;
-                    FailedImportRow::create([
-                        'center_id' => $batch->center_id,
-                        'import_batch_id' => $batch->id,
-                        'row_number' => $rowNumber,
-                        'row_data' => $mapped,
-                        'error_message' => implode('; ', $errors),
-                    ]);
+                    if ($failedLogsStored < $maxFailedLogs) {
+                        $failedBuffer[] = [
+                            'center_id' => $batch->center_id,
+                            'import_batch_id' => $batch->id,
+                            'row_number' => $rowNumber,
+                            'row_data' => json_encode($mapped, JSON_UNESCAPED_UNICODE),
+                            'error_message' => implode('; ', $errors),
+                            'created_at' => $now,
+                            'updated_at' => $now,
+                        ];
+                        $failedLogsStored++;
+                    }
+
+                    if (count($failedBuffer) >= $chunkSize) {
+                        $flushFailed();
+                    }
+
+                    if ($totalRows % $progressEvery === 0) {
+                        $this->touchProgress($batch, $totalRows, $imported, $duplicates, $failed);
+                    }
+
                     continue;
                 }
 
@@ -145,13 +258,23 @@ class CsvImportService
 
                 if ($normalizedPhone === null) {
                     $failed++;
-                    FailedImportRow::create([
-                        'center_id' => $batch->center_id,
-                        'import_batch_id' => $batch->id,
-                        'row_number' => $rowNumber,
-                        'row_data' => $mapped,
-                        'error_message' => 'Invalid phone number: ' . $mapped['phone_number'],
-                    ]);
+                    if ($failedLogsStored < $maxFailedLogs) {
+                        $failedBuffer[] = [
+                            'center_id' => $batch->center_id,
+                            'import_batch_id' => $batch->id,
+                            'row_number' => $rowNumber,
+                            'row_data' => json_encode($mapped, JSON_UNESCAPED_UNICODE),
+                            'error_message' => 'Invalid phone number: '.$mapped['phone_number'],
+                            'created_at' => $now,
+                            'updated_at' => $now,
+                        ];
+                        $failedLogsStored++;
+                    }
+
+                    if (count($failedBuffer) >= $chunkSize) {
+                        $flushFailed();
+                    }
+
                     continue;
                 }
 
@@ -168,62 +291,109 @@ class CsvImportService
                     $mapped['status'],
                 );
 
-                if ($this->duplicateService->isDuplicate($recordHash)) {
+                if (isset($seenHashes[$recordHash])) {
                     $duplicates++;
+
                     continue;
                 }
 
-                try {
-                    $record = InspectionRecord::create([
-                        'center_id' => $batch->center_id,
-                        'import_batch_id' => $batch->id,
-                        'registration_date' => $registrationDate,
-                        'inspection_date' => $inspectionDate,
-                        'expiration_date' => $expirationDate,
-                        'vehicle_class' => trim($mapped['vehicle_class'] ?? '') ?: null,
-                        'inspection_type' => trim($mapped['inspection_type'] ?? '') ?: null,
-                        'licence_plate' => mb_strtoupper(trim($mapped['licence_plate'])),
-                        'vehicle_category' => trim($mapped['vehicle_category'] ?? '') ?: null,
-                        'customer_name' => trim($mapped['customer_name']),
-                        'phone_number' => $mapped['phone_number'],
-                        'normalized_phone_number' => $normalizedPhone,
-                        'status' => trim($mapped['status']),
-                        'record_hash' => $recordHash,
-                    ]);
+                $seenHashes[$recordHash] = true;
 
-                    $this->consentService->ensureImportConsent($batch->center_id, $normalizedPhone);
+                $insertBuffer[] = [
+                    'center_id' => $batch->center_id,
+                    'import_batch_id' => $batch->id,
+                    'registration_date' => $registrationDate,
+                    'inspection_date' => $inspectionDate,
+                    'expiration_date' => $expirationDate,
+                    'vehicle_class' => trim($mapped['vehicle_class'] ?? '') ?: null,
+                    'inspection_type' => trim($mapped['inspection_type'] ?? '') ?: null,
+                    'licence_plate' => mb_strtoupper(trim($mapped['licence_plate'])),
+                    'vehicle_category' => trim($mapped['vehicle_category'] ?? '') ?: null,
+                    'customer_name' => trim($mapped['customer_name']),
+                    'phone_number' => $mapped['phone_number'],
+                    'normalized_phone_number' => $normalizedPhone,
+                    'status' => trim($mapped['status']),
+                    'record_hash' => $recordHash,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
 
-                    $createdRecords[] = $record;
-                    $imported++;
-                } catch (\Illuminate\Database\QueryException $e) {
-                    if (str_contains($e->getMessage(), 'Duplicate entry') || str_contains($e->getMessage(), 'UNIQUE constraint')) {
-                        $duplicates++;
-                    } else {
-                        $failed++;
-                        FailedImportRow::create([
-                            'center_id' => $batch->center_id,
-                            'import_batch_id' => $batch->id,
-                            'row_number' => $rowNumber,
-                            'row_data' => $mapped,
-                            'error_message' => 'Database error: ' . $e->getMessage(),
-                        ]);
-                    }
+                if (count($insertBuffer) >= $chunkSize) {
+                    $flushInserts();
+                }
+
+                if ($totalRows % $progressEvery === 0) {
+                    $flushInserts();
+                    $flushFailed();
+                    $this->touchProgress($batch, $totalRows, $imported, $duplicates, $failed);
                 }
             }
+
+            $flushInserts();
+            $flushFailed();
+
+            $this->touchProgress($batch, $totalRows, $imported, $duplicates, $failed);
+
+            $this->generateSchedulesForBatch($batch);
 
             $batch->update([
                 'total_rows' => $totalRows,
                 'imported_rows' => $imported,
                 'duplicate_rows' => $duplicates,
                 'failed_rows' => $failed,
+                'processed_rows' => $totalRows,
                 'status' => 'completed',
+                'error_message' => $hitRowLimit
+                    ? __('Import stopped after :max rows (file exceeded the configured limit).', ['max' => number_format($maxRows)])
+                    : null,
+            ]);
+        } catch (\Throwable $e) {
+            $batch->update([
+                'status' => 'failed',
+                'error_message' => mb_substr($e->getMessage(), 0, 2000),
             ]);
 
-            $this->schedulerService->generateForMany($createdRecords);
-
+            throw $e;
         } finally {
             fclose($handle);
         }
+    }
+
+    private function generateSchedulesForBatch(ImportBatch $batch): void
+    {
+        $center = $batch->center;
+        $chunkSize = max(50, (int) config('import.schedule_chunk_size', 200));
+
+        if (! $center) {
+            return;
+        }
+
+        InspectionRecord::query()
+            ->where('import_batch_id', $batch->id)
+            ->orderBy('id')
+            ->chunkById($chunkSize, function ($records) use ($center): void {
+                foreach ($records as $record) {
+                    $record->setRelation('center', $center);
+                    $this->schedulerService->generateForRecord($record);
+                }
+            });
+    }
+
+    private function touchProgress(
+        ImportBatch $batch,
+        int $totalRows,
+        int $imported,
+        int $duplicates,
+        int $failed,
+    ): void {
+        $batch->update([
+            'total_rows' => $totalRows,
+            'imported_rows' => $imported,
+            'duplicate_rows' => $duplicates,
+            'failed_rows' => $failed,
+            'processed_rows' => $totalRows,
+            'status' => 'processing',
+        ]);
     }
 
     private function mapHeaders(array $headers): ?array
@@ -236,7 +406,7 @@ class CsvImportService
             $normalized = mb_strtolower(trim($header));
             if (isset(self::HEADER_MAP[$normalized])) {
                 $map[$index] = self::HEADER_MAP[$normalized];
-                if (in_array(self::HEADER_MAP[$normalized], $requiredFields)) {
+                if (in_array(self::HEADER_MAP[$normalized], $requiredFields, true)) {
                     $requiredFound++;
                 }
             }
@@ -249,17 +419,17 @@ class CsvImportService
         return $map;
     }
 
-    private function mapRow(array $row, array $columnMap, array $headers): array
+    private function mapRow(array $row, array $columnMap): array
     {
         $mapped = [];
         foreach ($columnMap as $index => $field) {
-            $mapped[$field] = isset($row[$index]) ? trim($row[$index]) : '';
+            $mapped[$field] = isset($row[$index]) ? trim((string) $row[$index]) : '';
         }
 
         return $mapped;
     }
 
-    private function validateRow(array $row, int $rowNumber): array
+    private function validateRow(array $row): array
     {
         $errors = [];
 
@@ -282,11 +452,11 @@ class CsvImportService
         if (empty($row['expiration_date'] ?? '')) {
             $errors[] = 'Expiration date is missing';
         } elseif ($this->parseDate($row['expiration_date']) === null) {
-            $errors[] = 'Expiration date is invalid: ' . $row['expiration_date'];
+            $errors[] = 'Expiration date is invalid: '.$row['expiration_date'];
         }
 
         if (! empty($row['inspection_date'] ?? '') && $this->parseDate($row['inspection_date']) === null) {
-            $errors[] = 'Inspection date is invalid: ' . $row['inspection_date'];
+            $errors[] = 'Inspection date is invalid: '.$row['inspection_date'];
         }
 
         return $errors;
