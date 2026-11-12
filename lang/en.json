@@ -322,5 +322,8 @@
     "The uploaded file is empty.": "The uploaded file is empty.",
     "Notification language": "Notification language",
     "Language used for SMS and WhatsApp messages sent to customers of this center.": "Language used for SMS and WhatsApp messages sent to customers of this center.",
-    "Center created successfully. Default SMS and WhatsApp templates were added.": "Center created successfully. Default SMS and WhatsApp templates were added."
+    "Center created successfully. Default SMS and WhatsApp templates were added.": "Center created successfully. Default SMS and WhatsApp templates were added.",
+    "Nexah SMS balance is temporarily unavailable. Try again in a moment.": "Nexah SMS balance is temporarily unavailable. Try again in a moment.",
+    "Showing last known SMS balance (Nexah credit check timed out).": "Showing last known SMS balance (Nexah credit check timed out).",
+    "Cached": "Cached"
 }

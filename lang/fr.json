@@ -322,5 +322,8 @@
     "The uploaded file is empty.": "Le fichier téléversé est vide.",
     "Notification language": "Langue des notifications",
     "Language used for SMS and WhatsApp messages sent to customers of this center.": "Langue utilisée pour les SMS et WhatsApp envoyés aux clients de ce centre.",
-    "Center created successfully. Default SMS and WhatsApp templates were added.": "Centre créé avec succès. Les modèles SMS et WhatsApp par défaut ont été ajoutés."
+    "Center created successfully. Default SMS and WhatsApp templates were added.": "Centre créé avec succès. Les modèles SMS et WhatsApp par défaut ont été ajoutés.",
+    "Nexah SMS balance is temporarily unavailable. Try again in a moment.": "Le solde SMS Nexah est temporairement indisponible. Réessayez dans un instant.",
+    "Showing last known SMS balance (Nexah credit check timed out).": "Affichage du dernier solde SMS connu (vérification Nexah expirée).",
+    "Cached": "En cache"
 }

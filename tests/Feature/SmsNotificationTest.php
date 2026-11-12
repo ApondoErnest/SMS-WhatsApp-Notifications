@@ -430,6 +430,44 @@ class SmsNotificationTest extends TestCase
         Http::assertSentCount(2);
     }
 
+    public function test_sms_balance_falls_back_to_last_known_when_credit_endpoint_fails(): void
+    {
+        Http::fake([
+            'smsvas.com/*/smscredit' => Http::response([
+                'accountexpdate' => '26/03/2027',
+                'balanceexpdate' => '07/09/2027',
+                'credit' => 6124,
+            ], 200),
+            'smsvas.com/*/sendsms' => Http::response([
+                'responsecode' => 1,
+                'responsedescription' => 'success',
+                'responsemessage' => 'success',
+                'sms' => [[
+                    'messageid' => 'nexah-bal-1',
+                    'mobileno' => '+237677123456',
+                    'status' => 'success',
+                    'balance' => 5999,
+                ]],
+            ], 200),
+        ]);
+
+        // Prime last-known balance via a successful send response.
+        app(\App\Services\Sms\NexahSmsService::class)->send('+237677123456', 'balance prime');
+
+        Http::fake([
+            'smsvas.com/*/smscredit' => fn () => throw new \Illuminate\Http\Client\ConnectionException('timeout'),
+        ]);
+
+        $this->actingAs($this->superAdmin)
+            ->getJson(route('sms.balance', ['fresh' => 1]))
+            ->assertOk()
+            ->assertJson([
+                'ok' => true,
+                'credit' => 5999,
+                'stale' => true,
+            ]);
+    }
+
     private function makeSchedule(string $date, string $channel = 'sms'): NotificationSchedule
     {
         return NotificationSchedule::create([

@@ -13,6 +13,7 @@
                 class="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2 shadow-sm"
                 x-data="{
                     ok: false,
+                    stale: false,
                     credit: null,
                     accountExpiresAt: null,
                     balanceExpiresAt: null,
@@ -28,21 +29,27 @@
                     async refresh(fresh = true) {
                         this.loading = true;
                         try {
+                            const controller = new AbortController();
+                            const timer = setTimeout(() => controller.abort(), 20000);
                             const url = fresh
                                 ? @js(route('sms.balance', ['fresh' => 1]))
                                 : @js(route('sms.balance'));
                             const response = await fetch(url, {
                                 headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                                 credentials: 'same-origin',
+                                signal: controller.signal,
                             });
+                            clearTimeout(timer);
                             const data = await response.json();
                             this.ok = !!data.ok;
+                            this.stale = !!data.stale;
                             this.credit = data.credit ?? null;
                             this.accountExpiresAt = data.account_expires_at ?? null;
                             this.balanceExpiresAt = data.balance_expires_at ?? null;
                             this.message = data.message ?? null;
                         } catch (e) {
                             this.ok = false;
+                            this.stale = false;
                             this.message = @js(__('Could not refresh SMS balance.'));
                         } finally {
                             this.loading = false;
@@ -52,19 +59,21 @@
             >
                 <div class="min-w-0">
                     <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{{ __('SMS balance') }}</p>
-                    <template x-if="loading && !ok && !message">
+                    <template x-if="loading && credit === null && !message">
                         <p class="text-sm font-medium text-slate-400">{{ __('Loading…') }}</p>
                     </template>
-                    <template x-if="!loading && ok">
+                    <template x-if="ok || credit !== null">
                         <p class="text-sm font-semibold text-slate-900">
                             <span x-text="formattedCredit"></span>
                             <span class="font-normal text-slate-500">{{ __('credits') }}</span>
+                            <span class="ml-1 text-[10px] font-semibold uppercase text-amber-600" x-show="stale">{{ __('Cached') }}</span>
                         </p>
                     </template>
-                    <template x-if="!loading && !ok">
+                    <template x-if="!loading && !ok && credit === null">
                         <p class="max-w-xs truncate text-sm font-medium text-red-600" x-text="message || @js(__('Unavailable'))" :title="message"></p>
                     </template>
-                    <p class="text-xs text-slate-400" x-show="ok && balanceExpiresAt">
+                    <p class="text-xs text-amber-600" x-show="stale && message" x-text="message"></p>
+                    <p class="text-xs text-slate-400" x-show="ok && !stale && balanceExpiresAt">
                         {{ __('Balance expires') }}: <span x-text="balanceExpiresAt"></span>
                     </p>
                 </div>

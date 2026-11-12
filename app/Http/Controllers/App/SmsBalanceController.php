@@ -33,11 +33,18 @@ class SmsBalanceController extends Controller
             ], 502);
         }
 
+        $stale = (bool) ($balance['stale'] ?? false);
+
         return response()->json([
             'ok' => true,
             'credit' => $balance['credit'],
             'account_expires_at' => $balance['account_expires_at'],
             'balance_expires_at' => $balance['balance_expires_at'],
+            'stale' => $stale,
+            'checked_at' => $balance['checked_at'] ?? null,
+            'message' => $stale
+                ? __('Showing last known SMS balance (Nexah credit check timed out).')
+                : null,
         ]);
     }
 }
