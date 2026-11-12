@@ -33,7 +33,7 @@ The system will:
 | Initial version | One inspection center |
 | Future version | Multi-center SaaS |
 | Development | Build locally first |
-| Docker | Dockerize after core stability |
+| Docker | **Yes — production runs in Docker on the VPS** |
 | Backend | Laravel |
 | Language | PHP 8.3+ |
 | Database | MySQL 8 |
@@ -44,10 +44,10 @@ The system will:
 | WhatsApp | Direct Meta WhatsApp Cloud API |
 | Queue | Redis |
 | Queue monitor | Laravel Horizon |
-| Hosting | VPS |
-| Web server | Nginx |
-| Process manager | Supervisor |
-| SSL | Let's Encrypt |
+| Hosting | VPS (Docker Compose) |
+| Web server | Nginx (container) |
+| Process manager | Docker Compose services (app, queue, scheduler, Horizon) |
+| SSL | Let's Encrypt (+ Cloudflare) |
 | Security/CDN | Cloudflare |
 
 ---
@@ -797,7 +797,9 @@ app/
 
 ---
 
-## 24. VPS Deployment Plan
+## 24. VPS Deployment Plan (Docker)
+
+Production is deployed **with Docker Compose on the VPS** — not a bare-metal PHP-FPM/Supervisor install.
 
 ### Recommended Specs
 
@@ -805,50 +807,61 @@ app/
 - 4 GB RAM
 - 2 vCPU
 - 80 GB SSD
+- Docker Engine + Docker Compose plugin
 
 ### Production Stack
 
 ```
-Cloudflare → Nginx → PHP 8.3-FPM → Laravel App → Redis → MySQL
+Cloudflare → host SSL (Caddy/Nginx/Certbot) → Docker Compose
+  ├─ nginx          (reverse proxy to app)
+  ├─ app            (Laravel PHP-FPM / Octane-ready image)
+  ├─ queue-worker   (imports, notifications, webhooks, default)
+  ├─ scheduler      (php artisan schedule:work)
+  ├─ horizon        (optional monitor / supervisor alternative)
+  ├─ redis
+  └─ mysql
 ```
 
-### Requirements
+### Host requirements
 
-- Composer, Node.js, Git
-- Certbot (Let's Encrypt SSL)
-- Supervisor (queue workers, Horizon)
-- Laravel Scheduler via cron
-- Database backup strategy
+- Docker + Compose
+- Git (pull/deploy)
+- TLS termination (Let's Encrypt on host or Traefik/Caddy in Compose)
+- Persistent volumes for MySQL data, storage/app, and backups
+- Cloudflare DNS / proxy in front
 
-### Queue Worker
+### Compose services (Phase 10 deliverables)
 
-```bash
-php artisan queue:work redis --queue=imports,notifications,webhooks,default
-```
+| Service | Role |
+|---------|------|
+| `nginx` | HTTP reverse proxy to `app` |
+| `app` | Laravel application |
+| `queue-worker` | `queue:work redis --queue=imports,notifications,webhooks,default` |
+| `scheduler` | Laravel scheduler |
+| `horizon` | Queue dashboard / balanced workers (optional alongside worker) |
+| `redis` | Cache + queues |
+| `mysql` | Production database |
+
+### Deploy flow (target)
+
+1. Clone/pull repo on VPS  
+2. Copy production `.env`  
+3. `docker compose build && docker compose up -d`  
+4. `docker compose exec app php artisan migrate --force`  
+5. Smoke-test SMS, WhatsApp, CSV import, webhooks  
+
+### Backups
+
+- Keep `backup:database` on the scheduler container  
+- Persist dump files on a host-mounted volume (`DB_BACKUP_*`)
 
 ---
 
-## 25. Dockerization (After Stability)
+## 25. Docker Notes
 
-Dockerize only after:
-- CSV import works
-- Duplicate prevention works
-- Imported records table works
-- Nexah SMS works
-- Meta WhatsApp works
-- Queues work
-- Reports work
-- VPS deployment is stable
+Docker is the **default production path** (Phase 10), not a later add-on.
 
-### Future Docker Services
-
-- nginx
-- app
-- mysql
-- redis
-- queue-worker
-- scheduler
-- horizon
+Local development may stay non-Docker (`npm run local` / Herd / Valet) until Compose is ready; production VPS must run Compose.
 
 ---
 
@@ -955,16 +968,15 @@ Because `center_id` exists from day one, the app can later expand to:
 - Daily `backup:database` schedule + prune (`DB_BACKUP_*`)
 - `tests/Feature/SecurityHardeningTest.php`
 
-### Phase 10 — VPS Deployment
-- Install server stack (Nginx, PHP-FPM, MySQL, Redis)
-- Deploy Laravel app
-- Configure Nginx virtual host
-- Configure MySQL production
-- Configure Redis production
-- Configure Supervisor workers
-- Configure Laravel scheduler cron
-- Configure SSL (Let's Encrypt + Cloudflare)
-- Test production SMS and WhatsApp
+### Phase 10 — VPS Deployment (Docker Compose)
+- Create production `Dockerfile` (+ multi-stage build for assets) — `docker/php/Dockerfile`
+- Create `docker-compose.prod.yml` (nginx, app, mysql, redis, worker, scheduler)
+- Add `.env.docker.example` + host Nginx site template (`deploy/vps/nginx-host/`)
+- Deploy docs: `docs/DEPLOY-VPS.md` → Hostinger VPS `notify.noblevehicletestingcompany.com` (`127.0.0.1:8084`)
+- Configure persistent volumes (MySQL, Redis, `storage`, backups)
+- Configure SSL (host Certbot `--nginx`) alongside existing apps
+- Run migrations, roles seed, `visite:create-super-admin`
+- Test production SMS + webhooks (WhatsApp deferred until Meta creds ready)
 
 ### Phase 11 — Stabilization
 - Test real CSV files
@@ -973,17 +985,15 @@ Because `center_id` exists from day one, the app can later expand to:
 - Test Nexah SMS delivery to Cameroon numbers
 - Test WhatsApp template approval and sending
 - Test reports
-- Optimize performance
+- Optimize performance (image size, worker counts, MySQL/Redis tuning)
 
-### Phase 12 — Dockerization
-- Create Dockerfile
-- Create docker-compose.yml
-- Containerize app
-- Containerize queue workers
-- Containerize scheduler
-- Containerize Redis
-- Containerize MySQL
-- Test containerized deployment
+### Phase 12 — Docker Production Hardening
+- Healthchecks / restart policies
+- Separate prod override compose (`docker-compose.prod.yml`)
+- Log shipping / rotation
+- Zero-downtime or blue-green deploy notes
+- Secrets management refinements
+- Resource limits per service
 
 ### Phase 13 — Multi-Center SaaS Expansion
 - Add multiple centers
@@ -991,7 +1001,7 @@ Because `center_id` exists from day one, the app can later expand to:
 - Add tenant isolation middleware
 - Add center-specific settings
 - Add billing plans if needed
-- Scale VPS resources
+- Scale VPS / Compose resources
 
 ---
 
@@ -1010,7 +1020,7 @@ Because `center_id` exists from day one, the app can later expand to:
 11. Nexah SMS (https://nexah.net/)
 12. Meta WhatsApp Cloud API
 13. Reports
-14. VPS deployment with Nginx
+14. VPS deployment with Docker Compose
 15. Stabilization
-16. Dockerization
+16. Docker production hardening
 17. Multi-center SaaS expansion
