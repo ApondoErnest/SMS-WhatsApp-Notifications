@@ -10,6 +10,8 @@ Target:
 
 Repo: `https://github.com/ApondoErnest/SMS-WhatsApp-Notifications`
 
+Runtime: **PHP 8.4** (FPM image `php:8.4-fpm-bookworm`)
+
 ---
 
 ## 0) On your Mac — push Docker files

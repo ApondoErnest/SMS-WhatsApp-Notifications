@@ -40,7 +40,7 @@ RUN composer dump-autoload --optimize --no-dev --no-interaction
 # -----------------------------------------------------------------------------
 # PHP-FPM application
 # -----------------------------------------------------------------------------
-FROM php:8.3-fpm-bookworm AS app-production
+FROM php:8.4-fpm-bookworm AS app-production
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
