@@ -154,12 +154,27 @@ https://notify.noblevehicletestingcompany.com/webhooks/nexah/sms?token=YOUR_NEXA
 
 ---
 
+## 8) Phase 11 stabilization smoke
+
+After deploy is up, follow **[PHASE-11-STABILIZATION.md](PHASE-11-STABILIZATION.md)** (CSV / duplicates / SMS / reports / Livewire balance / WhatsApp Meta go-live when credentials are ready).
+
+Ensure sending flags in `.env.docker`:
+
+```bash
+NOTIFICATIONS_SENDING_ENABLED=true
+SMS_SENDING_ENABLED=true
+```
+
+Workers: `visite-notify-worker` (imports) and `visite-notify-worker-notifications` (SMS/WhatsApp/webhooks).
+
+---
+
 ## Useful commands
 
 ```bash
 cd /var/www/visite-notify
-docker compose -f docker-compose.prod.yml --env-file .env.docker logs -f --tail=100 app worker scheduler
-docker compose -f docker-compose.prod.yml --env-file .env.docker restart worker
+docker compose -f docker-compose.prod.yml --env-file .env.docker logs -f --tail=100 app worker worker-notifications scheduler
+docker compose -f docker-compose.prod.yml --env-file .env.docker restart worker worker-notifications
 docker compose -f docker-compose.prod.yml --env-file .env.docker exec app php artisan about
 ```
 

@@ -815,8 +815,9 @@ Production is deployed **with Docker Compose on the VPS** — not a bare-metal P
 Cloudflare → host SSL (Caddy/Nginx/Certbot) → Docker Compose
   ├─ nginx          (reverse proxy to app)
   ├─ app            (Laravel PHP-FPM / Octane-ready image)
-  ├─ queue-worker   (imports, notifications, webhooks, default)
-  ├─ scheduler      (php artisan schedule:work)
+  ├─ worker              (imports, default)
+  ├─ worker-notifications (notifications, webhooks)
+  ├─ scheduler           (php artisan schedule:work)
   ├─ horizon        (optional monitor / supervisor alternative)
   ├─ redis
   └─ mysql
@@ -836,11 +837,12 @@ Cloudflare → host SSL (Caddy/Nginx/Certbot) → Docker Compose
 |---------|------|
 | `nginx` | HTTP reverse proxy to `app` |
 | `app` | Laravel application |
-| `queue-worker` | `queue:work redis --queue=imports,notifications,webhooks,default` |
+| `worker` | `queue:work` — `imports,default` (long CSV jobs) |
+| `worker-notifications` | `queue:work` — `notifications,webhooks` |
 | `scheduler` | Laravel scheduler |
-| `horizon` | Queue dashboard / balanced workers (optional alongside worker) |
-| `redis` | Cache + queues |
-| `mysql` | Production database |
+| `horizon` | Queue dashboard / balanced workers (optional alongside workers) |
+| `redis` | Cache + queues (`maxmemory` + AOF) |
+| `mysql` | Production database (`docker/mysql/my.cnf`) |
 
 ### Deploy flow (target)
 
@@ -968,7 +970,7 @@ Because `center_id` exists from day one, the app can later expand to:
 - Daily `backup:database` schedule + prune (`DB_BACKUP_*`)
 - `tests/Feature/SecurityHardeningTest.php`
 
-### Phase 10 — VPS Deployment (Docker Compose)
+### Phase 10 — VPS Deployment (Docker Compose) ✅
 - Create production `Dockerfile` (+ multi-stage build for assets) — `docker/php/Dockerfile`
 - Create `docker-compose.prod.yml` (nginx, app, mysql, redis, worker, scheduler)
 - Add `.env.docker.example` + host Nginx site template (`deploy/vps/nginx-host/`)
@@ -976,16 +978,14 @@ Because `center_id` exists from day one, the app can later expand to:
 - Configure persistent volumes (MySQL, Redis, `storage`, backups)
 - Configure SSL (host Certbot `--nginx`) alongside existing apps
 - Run migrations, roles seed, `visite:create-super-admin`
-- Test production SMS + webhooks (WhatsApp deferred until Meta creds ready)
+- Test production SMS + CSV import (WhatsApp deferred until Meta creds ready)
+- Livewire nginx route fix (`/livewire` → PHP) so Solde SMS / Alpine UI work
 
-### Phase 11 — Stabilization
-- Test real CSV files
-- Test daily import workflow
-- Test duplicate prevention
-- Test Nexah SMS delivery to Cameroon numbers
-- Test WhatsApp template approval and sending
-- Test reports
-- Optimize performance (image size, worker counts, MySQL/Redis tuning)
+### Phase 11 — Stabilization ✅
+- Automated regression: CSV, duplicates, SMS, reports, scheduling, WhatsApp (Http::fake) — see `docs/PHASE-11-STABILIZATION.md`
+- Production smoke checklist (import, duplicates, past-expiry skip, SMS template + compact plate, reports, DLR)
+- WhatsApp live template approval / send deferred → Meta go-live checklist in same doc (until real Meta creds)
+- Performance: slim PHP image (purge build packages), MySQL `docker/mysql/my.cnf`, Redis `maxmemory` + LRU, split `worker` / `worker-notifications`
 
 ### Phase 12 — Docker Production Hardening
 - Healthchecks / restart policies

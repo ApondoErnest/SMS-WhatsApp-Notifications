@@ -155,8 +155,8 @@ app/
 | 7 | Meta WhatsApp Cloud API integration |
 | 8 | Reports and dashboard analytics |
 | 9 | Security hardening and audit logs ✅ |
-| 10 | VPS deployment via Docker Compose (nginx, app, mysql, redis, workers) |
-| 11 | Stabilization and real-world testing |
+| 10 | VPS deployment via Docker Compose (nginx, app, mysql, redis, workers) ✅ |
+| 11 | Stabilization and real-world testing ✅ — see [`docs/PHASE-11-STABILIZATION.md`](docs/PHASE-11-STABILIZATION.md) |
 | 12 | Docker production hardening |
 | 13 | Multi-center SaaS expansion |
 

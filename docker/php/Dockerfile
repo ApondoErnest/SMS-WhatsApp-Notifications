@@ -63,7 +63,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         posix \
     && pecl install redis \
     && docker-php-ext-enable redis \
-    && apt-get purge -y --auto-remove $PHPIZE_DEPS \
+    && apt-get purge -y --auto-remove git curl unzip $PHPIZE_DEPS \
     && rm -rf /var/lib/apt/lists/*
 
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/99-visite-notify.ini

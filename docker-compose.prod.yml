@@ -58,6 +58,7 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./docker/mysql/my.cnf:/etc/mysql/conf.d/visite-notify.cnf:ro
     healthcheck:
       test:
         [
@@ -75,7 +76,17 @@ services:
     image: redis:7-alpine
     container_name: visite-notify-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes
+    # Cap memory on a shared VPS; AOF kept for queue durability.
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--maxmemory",
+        "128mb",
+        "--maxmemory-policy",
+        "allkeys-lru",
+      ]
     volumes:
       - redis_data:/data
     healthcheck:
@@ -86,6 +97,7 @@ services:
     networks:
       - visite_notify
 
+  # Large CSV imports stay on this worker so notification sends are not blocked.
   worker:
     image: visite-notify-app:latest
     container_name: visite-notify-worker
@@ -99,10 +111,44 @@ services:
         "artisan",
         "queue:work",
         "redis",
-        "--queue=imports,notifications,webhooks,default",
+        "--queue=imports,default",
         "--sleep=3",
         "--tries=3",
         "--timeout=3600",
+        "--memory=512",
+        "--max-time=3600",
+        "--no-interaction",
+      ]
+    volumes:
+      - storage_data:/var/www/html/storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_started
+    networks:
+      - visite_notify
+
+  worker-notifications:
+    image: visite-notify-app:latest
+    container_name: visite-notify-worker-notifications
+    restart: unless-stopped
+    working_dir: /var/www/html
+    env_file:
+      - .env.docker
+    command:
+      [
+        "php",
+        "artisan",
+        "queue:work",
+        "redis",
+        "--queue=notifications,webhooks",
+        "--sleep=1",
+        "--tries=3",
+        "--timeout=120",
+        "--memory=256",
         "--max-time=3600",
         "--no-interaction",
       ]
