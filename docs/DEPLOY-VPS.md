@@ -40,8 +40,11 @@ git clone https://github.com/ApondoErnest/SMS-WhatsApp-Notifications.git .
 ```bash
 cd /var/www/visite-notify
 cp .env.docker.example .env.docker
+chmod 600 .env.docker
 nano .env.docker
 ```
+
+Never commit `.env.docker` (gitignored). See [PHASE-12-HARDENING.md](PHASE-12-HARDENING.md) for secrets + rolling deploy.
 
 Set at least:
 
@@ -178,7 +181,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.docker restart worker 
 docker compose -f docker-compose.prod.yml --env-file .env.docker exec app php artisan about
 ```
 
-### Update after git push
+### Update after git push (simple)
 
 ```bash
 cd /var/www/visite-notify
@@ -190,6 +193,10 @@ docker compose -f docker-compose.prod.yml --env-file .env.docker exec app php ar
 docker compose -f docker-compose.prod.yml --env-file .env.docker exec app php artisan view:cache
 ```
 
+### Rolling update (Phase 12 — preferred on production)
+
+See full sequence in **[PHASE-12-HARDENING.md](PHASE-12-HARDENING.md)** (build → migrate → roll `app`/`nginx` → workers → smoke `/up`).
+
 If the SMS balance widget stays blank / Livewire UI looks dead, confirm Livewire assets are not 404:
 
 ```bash
@@ -199,13 +206,20 @@ curl -sI https://notify.noblevehicletestingcompany.com/livewire/livewire.min.js 
 
 The Docker nginx image must route `/livewire` to PHP (static `*.js` → 404 otherwise). Rebuild nginx after pulling that conf fix.
 
+Confirm health after deploy:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.docker ps
+```
+
 ---
 
 ## Rollback / safety
 
 - Other apps use `8080` / `8082` / `8083` — Visite Notify uses **`8084` only**
 - Own MySQL/Redis volumes — no shared DB with the other 4 apps
-- To stop only this stack:
+- Prefer `git checkout <sha>` + `up -d --build` over deleting volumes
+- To stop only this stack (**do not** add `-v` on production):
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.docker down

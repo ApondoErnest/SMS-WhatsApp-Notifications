@@ -987,13 +987,13 @@ Because `center_id` exists from day one, the app can later expand to:
 - WhatsApp live template approval / send deferred → Meta go-live checklist in same doc (until real Meta creds)
 - Performance: slim PHP image (purge build packages), MySQL `docker/mysql/my.cnf`, Redis `maxmemory` + LRU, split `worker` / `worker-notifications`
 
-### Phase 12 — Docker Production Hardening
-- Healthchecks / restart policies
-- Separate prod override compose (`docker-compose.prod.yml`)
-- Log shipping / rotation
-- Zero-downtime or blue-green deploy notes
-- Secrets management refinements
-- Resource limits per service
+### Phase 12 — Docker Production Hardening ✅
+- Healthchecks on all Compose services + `restart: unless-stopped`
+- Prod stack isolated in `docker-compose.prod.yml` (local stays on `docker-compose.yml`)
+- Docker `json-file` log rotation (10m × 5) + Laravel `LOG_STACK=daily`
+- Rolling deploy / rollback notes — `docs/PHASE-12-HARDENING.md` + `docs/DEPLOY-VPS.md`
+- Secrets: `.env.docker` gitignored, `chmod 600`, rotation checklist
+- CPU / memory limits (`cpus`, `mem_limit`) per service
 
 ### Phase 13 — Multi-Center SaaS Expansion
 - Add multiple centers

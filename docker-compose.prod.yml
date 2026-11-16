@@ -1,33 +1,57 @@
-# Visite Notify — Production Docker stack
-# Usage on VPS:
-#   cp .env.docker.example .env.docker   # then edit secrets
+# Visite Notify — Production Docker stack (Phase 10–12)
+# Local/dev uses docker-compose.yml; this file is VPS-only.
+#
+# Usage:
+#   cp .env.docker.example .env.docker && chmod 600 .env.docker
 #   docker compose -f docker-compose.prod.yml --env-file .env.docker up -d --build
 #   docker compose -f docker-compose.prod.yml --env-file .env.docker exec app php artisan migrate --force
-#   docker compose -f docker-compose.prod.yml --env-file .env.docker exec app php artisan db:seed --class=RoleAndPermissionSeeder --force
 
 name: visite-notify
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-app-runtime: &app-runtime
+  image: visite-notify-app:latest
+  working_dir: /var/www/html
+  env_file:
+    - .env.docker
+  volumes:
+    - storage_data:/var/www/html/storage
+  networks:
+    - visite_notify
+  logging: *default-logging
+  restart: unless-stopped
+
 services:
   app:
+    <<: *app-runtime
     build:
       context: .
       dockerfile: docker/php/Dockerfile
       target: app-production
-    image: visite-notify-app:latest
     container_name: visite-notify-app
-    restart: unless-stopped
-    working_dir: /var/www/html
-    env_file:
-      - .env.docker
-    volumes:
-      - storage_data:/var/www/html/storage
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - visite_notify
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "php -r '$$s=@fsockopen(\"127.0.0.1\",9000); exit($$s?0:1);'",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+    cpus: 1.0
+    mem_limit: 512m
+    mem_reservation: 256m
 
   nginx:
     build:
@@ -43,9 +67,23 @@ services:
       - storage_data:/var/www/html/storage:ro
     depends_on:
       app:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1/up >/dev/null || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging: *default-logging
     networks:
       - visite_notify
+    cpus: 0.50
+    mem_limit: 128m
+    mem_reservation: 64m
 
   mysql:
     image: mysql:8.4
@@ -69,14 +107,17 @@ services:
       timeout: 5s
       retries: 20
       start_period: 30s
+    logging: *default-logging
     networks:
       - visite_notify
+    cpus: 1.0
+    mem_limit: 768m
+    mem_reservation: 384m
 
   redis:
     image: redis:7-alpine
     container_name: visite-notify-redis
     restart: unless-stopped
-    # Cap memory on a shared VPS; AOF kept for queue durability.
     command:
       [
         "redis-server",
@@ -94,17 +135,17 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+    logging: *default-logging
     networks:
       - visite_notify
+    cpus: 0.25
+    mem_limit: 160m
+    mem_reservation: 64m
 
-  # Large CSV imports stay on this worker so notification sends are not blocked.
+  # Large CSV imports stay here so notification sends are not blocked.
   worker:
-    image: visite-notify-app:latest
+    <<: *app-runtime
     container_name: visite-notify-worker
-    restart: unless-stopped
-    working_dir: /var/www/html
-    env_file:
-      - .env.docker
     command:
       [
         "php",
@@ -119,25 +160,30 @@ services:
         "--max-time=3600",
         "--no-interaction",
       ]
-    volumes:
-      - storage_data:/var/www/html/storage
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
       app:
-        condition: service_started
-    networks:
-      - visite_notify
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "php -r 'exit(is_readable(\"/proc/1/cmdline\") && str_contains(@file_get_contents(\"/proc/1/cmdline\") ?: \"\", \"queue:work\") ? 0 : 1);'",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    cpus: 1.0
+    mem_limit: 768m
+    mem_reservation: 256m
 
   worker-notifications:
-    image: visite-notify-app:latest
+    <<: *app-runtime
     container_name: visite-notify-worker-notifications
-    restart: unless-stopped
-    working_dir: /var/www/html
-    env_file:
-      - .env.docker
     command:
       [
         "php",
@@ -152,37 +198,51 @@ services:
         "--max-time=3600",
         "--no-interaction",
       ]
-    volumes:
-      - storage_data:/var/www/html/storage
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
       app:
-        condition: service_started
-    networks:
-      - visite_notify
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "php -r 'exit(is_readable(\"/proc/1/cmdline\") && str_contains(@file_get_contents(\"/proc/1/cmdline\") ?: \"\", \"queue:work\") ? 0 : 1);'",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    cpus: 0.50
+    mem_limit: 384m
+    mem_reservation: 128m
 
   scheduler:
-    image: visite-notify-app:latest
+    <<: *app-runtime
     container_name: visite-notify-scheduler
-    restart: unless-stopped
-    working_dir: /var/www/html
-    env_file:
-      - .env.docker
     command: ["php", "artisan", "schedule:work", "--no-interaction"]
-    volumes:
-      - storage_data:/var/www/html/storage
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
       app:
-        condition: service_started
-    networks:
-      - visite_notify
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "php -r 'exit(is_readable(\"/proc/1/cmdline\") && str_contains(@file_get_contents(\"/proc/1/cmdline\") ?: \"\", \"schedule:work\") ? 0 : 1);'",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    cpus: 0.25
+    mem_limit: 256m
+    mem_reservation: 96m
 
 networks:
   visite_notify:
