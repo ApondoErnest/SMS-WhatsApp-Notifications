@@ -171,8 +171,9 @@ class NexahSmsService
         try {
             $response = Http::acceptJson()
                 ->asJson()
-                ->timeout(12)
-                ->connectTimeout(5)
+                // Nexah /smscredit is often very slow from this VPS; allow a long wait.
+                ->timeout(60)
+                ->connectTimeout(20)
                 ->post($this->endpoint('smscredit'), [
                     'user' => config('services.nexah.user'),
                     'password' => config('services.nexah.password'),

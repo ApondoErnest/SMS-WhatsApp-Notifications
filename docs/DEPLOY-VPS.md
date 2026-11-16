@@ -175,6 +175,15 @@ docker compose -f docker-compose.prod.yml --env-file .env.docker exec app php ar
 docker compose -f docker-compose.prod.yml --env-file .env.docker exec app php artisan view:cache
 ```
 
+If the SMS balance widget stays blank / Livewire UI looks dead, confirm Livewire assets are not 404:
+
+```bash
+curl -sI https://notify.noblevehicletestingcompany.com/livewire/livewire.min.js | head -n 1
+# expect HTTP/2 200 (not 404)
+```
+
+The Docker nginx image must route `/livewire` to PHP (static `*.js` → 404 otherwise). Rebuild nginx after pulling that conf fix.
+
 ---
 
 ## Rollback / safety

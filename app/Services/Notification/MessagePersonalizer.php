@@ -17,7 +17,7 @@ class MessagePersonalizer
 
         return [
             'customer_name' => (string) $record->customer_name,
-            // WhatsApp templates: plate without spaces/dashes (e.g. LT164HP).
+            // SMS + WhatsApp: plate without spaces/dashes (e.g. LT 003 MM → LT003MM).
             'licence_plate' => self::compactLicencePlate((string) $record->licence_plate),
             'expiration_date' => Carbon::parse($record->expiration_date)->format('d/m/Y'),
             'center_name' => (string) ($record->center?->name ?? ''),
@@ -26,7 +26,9 @@ class MessagePersonalizer
 
     public static function compactLicencePlate(string $plate): string
     {
-        return mb_strtoupper(preg_replace('/[\s\-]+/', '', $plate) ?? $plate);
+        $compact = preg_replace('/[\s\x{00A0}\-]+/u', '', $plate) ?? $plate;
+
+        return mb_strtoupper($compact);
     }
 
     /**
