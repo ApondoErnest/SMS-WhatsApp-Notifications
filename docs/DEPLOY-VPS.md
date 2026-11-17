@@ -170,6 +170,14 @@ SMS_SENDING_ENABLED=true
 
 Workers: `visite-notify-worker` (imports) and `visite-notify-worker-notifications` (SMS/WhatsApp/webhooks).
 
+Daily DB dumps land in `storage/app/private/backups/database/` (retain 14). The app image must include `mysqldump` (`default-mysql-client`). Verify:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.docker exec app which mysqldump
+docker compose -f docker-compose.prod.yml --env-file .env.docker exec app php artisan backup:database
+docker compose -f docker-compose.prod.yml --env-file .env.docker exec app ls -lah storage/app/private/backups/database
+```
+
 ---
 
 ## Useful commands

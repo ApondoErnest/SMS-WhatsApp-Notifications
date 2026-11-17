@@ -46,6 +46,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         curl \
         unzip \
+        default-mysql-client \
         libicu-dev \
         libzip-dev \
         libpng-dev \
@@ -64,7 +65,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && pecl install redis \
     && docker-php-ext-enable redis \
     && apt-get purge -y --auto-remove git curl unzip $PHPIZE_DEPS \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && command -v mysqldump >/dev/null
 
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/99-visite-notify.ini
 COPY docker/php/www.conf /usr/local/etc/php-fpm.d/zz-visite-notify.conf
