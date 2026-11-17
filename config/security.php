@@ -13,7 +13,12 @@ return [
         // Production Docker: disk=db_backups (host folder via DB_BACKUP_ROOT).
         // Local/dev default: disk=local under storage/app/private.
         'disk' => env('DB_BACKUP_DISK', 'local'),
-        'path' => env('DB_BACKUP_PATH', 'backups/database'),
+        // Host bind (db_backups): write dumps in the folder root unless PATH is set.
+        // Local disk: default subdirectory backups/database.
+        'path' => env(
+            'DB_BACKUP_PATH',
+            env('DB_BACKUP_DISK', 'local') === 'db_backups' ? '' : 'backups/database'
+        ),
         // Keep this many dump files (older ones are deleted).
         'retain' => (int) env('DB_BACKUP_RETAIN', 14),
     ],
