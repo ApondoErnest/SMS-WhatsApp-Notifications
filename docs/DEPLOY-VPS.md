@@ -186,6 +186,8 @@ DB_BACKUP_PATH=
 DB_BACKUP_RETAIN=14
 ```
 
+Do **not** put `/var/backups/visite-notify` in `DB_BACKUP_PATH` — that is only for `DB_BACKUP_ROOT`. Leave `DB_BACKUP_PATH` empty so dumps land directly in that folder. After editing `.env.docker`, recreate containers (`up -d --force-recreate …`) so they pick up the new env.
+
 The app image must include `mysqldump`. Verify:
 
 ```bash

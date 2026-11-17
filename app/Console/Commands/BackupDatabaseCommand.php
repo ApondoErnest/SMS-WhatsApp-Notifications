@@ -24,8 +24,10 @@ class BackupDatabaseCommand extends Command
         $connection = config('database.default');
         $driver = config("database.connections.{$connection}.driver");
 
-        $disk = Storage::disk((string) config('security.backups.disk', 'local'));
-        $dir = trim((string) config('security.backups.path', 'backups/database'), '/.');
+        $diskName = (string) config('security.backups.disk', 'local');
+        $disk = Storage::disk($diskName);
+        $dir = $this->resolveBackupSubdirectory($diskName);
+
         if ($dir !== '') {
             $disk->makeDirectory($dir);
         }
@@ -53,9 +55,40 @@ class BackupDatabaseCommand extends Command
         $retain = (int) ($this->option('keep') ?: config('security.backups.retain', 14));
         $this->pruneOldBackups($disk, $dir, max(1, $retain));
 
-        $this->info('Database backup created.');
+        $written = $disk->path($relativePath.($driver === 'sqlite' ? '.sqlite' : '.sql'));
+        $this->info('Database backup created: '.$written);
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Relative subdirectory inside the backup disk root.
+     * Absolute paths belong in DB_BACKUP_ROOT, not DB_BACKUP_PATH.
+     */
+    private function resolveBackupSubdirectory(string $diskName): string
+    {
+        $raw = (string) config('security.backups.path', '');
+        $dir = trim($raw, '/.');
+
+        if ($dir === '') {
+            return '';
+        }
+
+        // e.g. DB_BACKUP_PATH=/var/backups/visite-notify → would nest as …/var/backups/…
+        if (str_starts_with($raw, '/') || preg_match('#^(var|home|usr|etc)/#', $dir) === 1) {
+            $this->warn('DB_BACKUP_PATH looks like a filesystem path; writing to the disk root instead. Set the folder with DB_BACKUP_ROOT only.');
+
+            return '';
+        }
+
+        $root = rtrim(str_replace('\\', '/', (string) config("filesystems.disks.{$diskName}.root", '')), '/');
+        if ($root !== '' && ($dir === ltrim($root, '/') || str_ends_with($root, '/'.$dir))) {
+            $this->warn('DB_BACKUP_PATH duplicates DB_BACKUP_ROOT; writing to the disk root instead.');
+
+            return '';
+        }
+
+        return $dir;
     }
 
     private function backupSqlite($disk, string $relativePath): void
@@ -71,6 +104,7 @@ class BackupDatabaseCommand extends Command
         if (! copy($database, $absolute)) {
             throw new \RuntimeException('Failed to copy SQLite database file.');
         }
+        $this->relaxPermissions($absolute);
     }
 
     private function backupMysql($disk, string $relativePath): void
@@ -109,6 +143,14 @@ class BackupDatabaseCommand extends Command
         if (file_put_contents($absolute, $process->getOutput()) === false) {
             throw new \RuntimeException('Failed to write MySQL dump file.');
         }
+
+        $this->relaxPermissions($absolute);
+    }
+
+    private function relaxPermissions(string $absolute): void
+    {
+        @chmod(dirname($absolute), 0755);
+        @chmod($absolute, 0644);
     }
 
     private function pruneOldBackups($disk, string $dir, int $retain): void
