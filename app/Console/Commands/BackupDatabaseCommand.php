@@ -25,11 +25,14 @@ class BackupDatabaseCommand extends Command
         $driver = config("database.connections.{$connection}.driver");
 
         $disk = Storage::disk((string) config('security.backups.disk', 'local'));
-        $dir = trim((string) config('security.backups.path', 'backups/database'), '/');
-        $disk->makeDirectory($dir);
+        $dir = trim((string) config('security.backups.path', 'backups/database'), '/.');
+        if ($dir !== '') {
+            $disk->makeDirectory($dir);
+        }
 
         $timestamp = now()->format('Y-m-d_His');
-        $relativePath = "{$dir}/{$connection}_{$timestamp}";
+        $filename = "{$connection}_{$timestamp}";
+        $relativePath = $dir === '' ? $filename : "{$dir}/{$filename}";
 
         try {
             if ($driver === 'sqlite') {
@@ -110,7 +113,7 @@ class BackupDatabaseCommand extends Command
 
     private function pruneOldBackups($disk, string $dir, int $retain): void
     {
-        $files = collect($disk->files($dir))
+        $files = collect($disk->files($dir === '' ? '' : $dir))
             ->filter(fn (string $path) => preg_match('/\.(sql|sqlite)$/', $path) === 1)
             ->sort()
             ->values();

@@ -170,13 +170,31 @@ SMS_SENDING_ENABLED=true
 
 Workers: `visite-notify-worker` (imports) and `visite-notify-worker-notifications` (SMS/WhatsApp/webhooks).
 
-Daily DB dumps land in `storage/app/private/backups/database/` (retain 14). The app image must include `mysqldump` (`default-mysql-client`). Verify:
+Daily DB dumps go to the **host** folder `/var/backups/visite-notify` (bind-mounted into app/scheduler; retain 14). Create it once:
+
+```bash
+sudo mkdir -p /var/backups/visite-notify
+sudo chmod 755 /var/backups/visite-notify
+```
+
+In `.env.docker` (see `.env.docker.example`):
+
+```bash
+DB_BACKUP_DISK=db_backups
+DB_BACKUP_ROOT=/var/backups/visite-notify
+DB_BACKUP_PATH=
+DB_BACKUP_RETAIN=14
+```
+
+The app image must include `mysqldump`. Verify:
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.docker exec app which mysqldump
 docker compose -f docker-compose.prod.yml --env-file .env.docker exec app php artisan backup:database
-docker compose -f docker-compose.prod.yml --env-file .env.docker exec app ls -lah storage/app/private/backups/database
+ls -lah /var/backups/visite-notify
 ```
+
+Destroying containers (`docker compose down` **without** `-v`) does **not** delete this host folder or the MySQL volume. Avoid `down -v` on production.
 
 ---
 

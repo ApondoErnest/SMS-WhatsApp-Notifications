@@ -10,9 +10,11 @@ return [
 
     'backups' => [
         'enabled' => (bool) env('DB_BACKUP_ENABLED', true),
+        // Production Docker: disk=db_backups (host folder via DB_BACKUP_ROOT).
+        // Local/dev default: disk=local under storage/app/private.
         'disk' => env('DB_BACKUP_DISK', 'local'),
         'path' => env('DB_BACKUP_PATH', 'backups/database'),
-        // Keep this many daily backups (older files are deleted).
+        // Keep this many dump files (older ones are deleted).
         'retain' => (int) env('DB_BACKUP_RETAIN', 14),
     ],
 ];

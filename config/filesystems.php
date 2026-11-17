@@ -38,6 +38,15 @@ return [
             'report' => false,
         ],
 
+        // Daily DB dumps. On the VPS this is a host bind at /var/backups/visite-notify
+        // so dumps survive container recreation (see docker-compose.prod.yml).
+        'db_backups' => [
+            'driver' => 'local',
+            'root' => env('DB_BACKUP_ROOT') ?: storage_path('app/private/backups/database'),
+            'throw' => false,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

@@ -21,6 +21,8 @@ x-app-runtime: &app-runtime
     - .env.docker
   volumes:
     - storage_data:/var/www/html/storage
+    # Host-visible DB dumps (survives container recreate; not removed by compose down without -v).
+    - /var/backups/visite-notify:/var/backups/visite-notify
   networks:
     - visite_notify
   logging: *default-logging
